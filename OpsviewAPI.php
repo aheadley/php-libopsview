@@ -4,6 +4,8 @@ class OpsviewAPI
 {
     protected $config;
     protected $curl_handle;
+    protected $cookie_file;
+    protected $content_type;
     protected $states = array(
         'ok'        =>  'state=0',
         'warning'   =>  'state=1',
@@ -26,10 +28,21 @@ class OpsviewAPI
         } elseif (is_string($config) && is_readable($config)) {
             $this->config = parse_ini_file($config);
         } else {
+            //TODO: change this to something meaningful
             throw new Exception('no config');
         }
 
         $this->curl_handle = curl_init();
+        $this->cookie_file = 'cookie_file.txt';
+        switch ($this->config['content_type']) {
+            case 'xml':
+                $this->content_type = 'text/xml';
+                break;
+            case 'json':
+            default:
+                $this->content_type = 'application/json';
+                break;
+        }
     }
 
     public function __destruct()
@@ -42,9 +55,26 @@ class OpsviewAPI
 
     }
 
-    public function getStatusHostgroup($hostgroup)
+    public function getStatusHost($host)
     {
+        // GET /api/status/service?host=$host
+    }
 
+    public function getStatusHostgroup($hostgroup_id)
+    {
+        curl_setopt_array($this->curl_handle, array(
+            CURLOPT_URL             =>  $this->config['base_url'] .
+                $this->api_urls['status_hostgroup'] . '/' . $hostgroup_id,
+            CURLOPT_RETURNTRANSFER  =>  true,
+            CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
+                PATH_SEPARATOR . $this->cookie_file,
+            CURLOPT_HTTPHEADER      =>  array(
+                'Content-Type: ' . $this->content_type,
+                ),
+        ));
+
+        $this->login();
+        return trim(curl_exec($this->curl_handle));
     }
 
     public function acknowledgeService($host, $service, $comment)
@@ -59,16 +89,17 @@ class OpsviewAPI
 
     public function deleteHost($host)
     {
-
+        return false;
     }
 
     public function createHost($newhostname)
     {
-
+        return false;
     }
 
     public function scheduleDowntimeHostgroup($hostgroup, $comment)
     {
+
 
     }
 
@@ -79,7 +110,8 @@ class OpsviewAPI
 
     protected function login()
     {
-        $cookie_file = $this->config['cache_dir'] . PATH_SEPARATOR . 'login_cookie.txt';
+        $cookie_file = $this->config['cache_dir'] . PATH_SEPARATOR .
+            $this->cookie_file;
         $post_data = array(
             'login_username'    =>  $this->config['username'],
             'login_password'    =>  $this->config['password'],
@@ -88,15 +120,18 @@ class OpsviewAPI
         );
 
         curl_setopt_array($this->curl_handle, array(
-            CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['login'],
+            CURLOPT_URL             =>  $this->config['base_url'] .
+                $this->api_urls['login'],
             CURLOPT_RETURNTRANSFER  =>  true,
             CURLOPT_POSTFIELDS      =>  $this->format_url_args($post_data),
             CURLOPT_COOKIEJAR       =>  $cookie_file,
         ));
 
         if (file_exists($cookie_file)
-            && (time() - filemtime($cookie_file)) < $this->config['cookie_cache_time']) {
-            //cookie file exists and is within cache window so we're still logged in (probably), do nothing
+            && (time() - filemtime($cookie_file)) <
+                $this->config['cookie_cache_time']) {
+            //cookie file exists and is within cache window so we're still
+            //  logged in (probably), do nothing
             return true;
         } else {
             return curl_exec($this->curl_handle);
