@@ -50,18 +50,63 @@ class OpsviewAPI
         curl_close($this->curl_handle);
     }
 
-    public function getStatusService($host, $service)
+    public function getStatusService($host_name, $service_name)
     {
+        $host_status = null;
+        $service_status = null;
+        
+        switch ($this->config['content_type'] ) {
+            case 'xml':
+                $host_status = simplexml_load_string($this->getStatusHost($host_name))
+                    ->data->list->services;
+                foreach ($host_status as $service) {
+                    $attr = $service->attributes();
+                    if ($attr['name'] == $service_name) {
+                        $service_status = $service;
+                        break;
+                    }
+                }
+                break;
+            case 'json':
+            default:
+                $host_status = json_decode($this->getStatusHost($host_name),true);
+                foreach ($host_status['service']['list'][0]['services'] as $service) {
+                    if ($service['name'] == $service_name) {
+                        $service_status = json_encode($service);
+                        break;
+                    }
+                }
+                break;
+        }
 
+        return $service_status;
     }
 
-    public function getStatusHost($host)
+    public function getStatusHost($host_name)
     {
-        // GET /api/status/service?host=$host
+        $host_status = null;
+        //TODO: check cache here
+        $this->login();
+        curl_setopt_array($this->curl_handle, array(
+            CURLOPT_URL             =>  $this->config['base_url'] .
+                $this->api_urls['status_host'] . '?host=' . $host_name,
+            CURLOPT_RETURNTRANSFER  =>  true,
+            CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
+                PATH_SEPARATOR . $this->cookie_file,
+            CURLOPT_HTTPHEADER      =>  array(
+                'Content-Type: ' . $this->content_type,
+            ),
+        ));
+        $host_status = trim(curl_exec($this->curl_handle));
+
+        return $host_status;
     }
 
     public function getStatusHostgroup($hostgroup_id)
     {
+        $hostgroup_status = null;
+        //TODO: check cache here
+        $this->login();
         curl_setopt_array($this->curl_handle, array(
             CURLOPT_URL             =>  $this->config['base_url'] .
                 $this->api_urls['status_hostgroup'] . '/' . $hostgroup_id,
@@ -72,9 +117,9 @@ class OpsviewAPI
                 'Content-Type: ' . $this->content_type,
                 ),
         ));
+        $hostgroup_status = trim(curl_exec($this->curl_handle));
 
-        $this->login();
-        return trim(curl_exec($this->curl_handle));
+        return $hostgroup_status;
     }
 
     public function acknowledgeService($host, $service, $comment)
@@ -99,7 +144,6 @@ class OpsviewAPI
 
     public function scheduleDowntimeHostgroup($hostgroup, $comment)
     {
-
 
     }
 
