@@ -79,7 +79,43 @@ class OpsviewAPI
 
     protected function login()
     {
+        $cookie_file = $this->config['cache_dir'] . PATH_SEPARATOR . 'login_cookie.txt';
+        $post_data = array(
+            'login_username'    =>  $this->config['username'],
+            'login_password'    =>  $this->config['password'],
+            'back'              =>  '',
+            'login'             =>  'Log In',
+        );
 
+        curl_setopt_array($this->curl_handle, array(
+            CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['login'],
+            CURLOPT_RETURNTRANSFER  =>  true,
+            CURLOPT_POSTFIELDS      =>  $this->format_url_args($post_data),
+            CURLOPT_COOKIEJAR       =>  $cookie_file,
+        ));
+
+        if (file_exists($cookie_file)
+            && (time() - filemtime($cookie_file)) < $this->config['cookie_cache_time']) {
+            //cookie file exists and is within cache window so we're still logged in (probably), do nothing
+            return true;
+        } else {
+            return curl_exec($this->curl_handle);
+        }
+    }
+
+    protected function format_url_args($args)
+    {
+        if (is_array($args) and count($args) > 0) {
+            $args_encoded = '';
+            foreach ($args as $key => $value) {
+                $args_encoded .= urlencode($key) . '=' . urlencode($value) . '&';
+            }
+            $args_encoded = substr($args_encoded, 0, strlen($args_encoded)-1);
+
+            return $args_encoded;
+        } else {
+            return null;
+        }
     }
 }
 ?>
