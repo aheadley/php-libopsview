@@ -23,6 +23,8 @@ class OpsviewAPI
     
     public function __construct($config = 'opsview.ini')
     {
+        //TODO: need to set defaults then use something like array_replace()
+        //  to overwrite default settings
         if (is_array($config)) {
             $this->config = $config;
         } elseif (is_string($config) && is_readable($config)) {
@@ -132,12 +134,22 @@ class OpsviewAPI
 
     }
 
-    public function deleteHost($host)
+    public function acknowledgeAll($comment)
+    {
+
+    }
+
+    public function createHost($new_host_name)
     {
         return false;
     }
 
-    public function createHost($newhostname)
+    public function deleteHost($host_name)
+    {
+        return false;
+    }
+
+    public function reload()
     {
         return false;
     }
@@ -178,6 +190,7 @@ class OpsviewAPI
             //  logged in (probably), do nothing
             return true;
         } else {
+            //TODO: actually check the output of curl to see if login was (probably) successful
             return curl_exec($this->curl_handle);
         }
     }
@@ -195,6 +208,27 @@ class OpsviewAPI
         } else {
             return null;
         }
+    }
+
+    protected function acknowledge($alerting, $comment)
+    {
+        $hosts = array();
+        $services= array();
+        $post_args = '';
+        $this->login();
+
+        //set curl opts
+
+        foreach($alerting as $host => $service) {
+            if ($service == '') {
+                $hosts[] = $host;
+            } else {
+                $services[] = $host . ';' . $service;
+            }
+        }
+
+        //set post args
+        //curl_exec
     }
 }
 ?>
