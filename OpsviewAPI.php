@@ -124,17 +124,20 @@ class OpsviewAPI
         return $hostgroup_status;
     }
 
-    public function acknowledgeService($host, $service, $comment)
+    public function acknowledgeService($host, $service, $comment,
+        $notify = true, $autoremovecomment = true)
     {
-
+        return $this->acknowledge(array($host => $service), $comment, $notify,
+            $autoremovecomment);
     }
 
-    public function acknowledgeHost($host, $comment)
+    public function acknowledgeHost($host, $comment, $notify = true,
+        $autoremovecomment = true)
     {
-
+        return $this->acknowledge(array($host), $comment, $notify, $autoremovecomment);
     }
 
-    public function acknowledgeAll($comment)
+    public function acknowledgeAll($comment, $notify = false, $autoremovecomment = true)
     {
 
     }
