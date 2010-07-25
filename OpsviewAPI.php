@@ -52,6 +52,11 @@ class OpsviewAPI
         curl_close($this->curl_handle);
     }
 
+    public function getStatusGeneral($filters)
+    {
+
+    }
+
     public function getStatusService($host_name, $service_name)
     {
         $host_status = null;
@@ -139,7 +144,55 @@ class OpsviewAPI
 
     public function acknowledgeAll($comment, $notify = false, $autoremovecomment = true)
     {
+        $alerting = array();
+        $alerting_raw = $this->getStatusGeneral(array(
+            $this->states['critical'],
+            $this->states['warning'],
+            $this->states['unhandled'],
+        ));
 
+        switch ($this->config['content_type']) {
+            /* lol whoops, wasn't thinking ahead on this. since the hostname is
+             *  is used as the array key if there is more than one service alerting
+             *  but unacknowledged only the last service will actually be acknowledged
+             *  since the others get overwritten
+             * TODO: fix this, use arrays for services maybe?
+             */
+            case 'xml':
+                $alerting_raw = simplexml_load_string($alerting)->data->list;
+                foreach ($alerting_raw as $host_raw) {
+                    if ($host_raw->attributes()->current_check_attempt ==
+                        $host_raw->attributes()->max_check_attempts) {
+                        $alerting[$host_raw->attributes()->name] = null;
+                    } else {
+                        foreach ($alerting_raw->services as $service_raw) {
+                            if ($service_raw->attributes()->current_check_attempt ==
+                                $service_raw->attributes()->max_check_attempts) {
+                                $alerting[$host_raw->attributes()->name] =
+                                    $service_raw->attributes()->name;
+                            }
+                        }
+                    }
+                }
+            case 'json':
+            default:
+                $alerting_raw = json_decode($alerting_raw, true);
+                $alerting_raw = $alerting_raw['data']['list'];
+                foreach ($alerting_raw as $host_raw) {
+                    if ($host_raw['current_check_attempt'] == $host_raw['max_check_attempts']) {
+                        $alerting[$host_raw['name']] = null;
+                    } else {
+                        foreach ($alerting_raw['services'] as $service_raw) {
+                            if ($service_raw['current_check_attempt'] ==
+                                $service_raw['max_check_attempts']) {
+                                $alerting[$host_raw['name']] = $service_raw['name'];
+                            }
+                        }
+                    }
+                }
+        }   //end switch
+
+        return $this->acknowledge($alerting, $comment, $notify, $autoremovecomment);
     }
 
     public function createHost($new_host_name)
