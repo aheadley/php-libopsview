@@ -197,6 +197,7 @@ class OpsviewAPI
 
     protected function format_url_args($args)
     {
+        //TODO: make this handle arrays (like would be needed for acknowledgements
         if (is_array($args) and count($args) > 0) {
             $args_encoded = '';
             foreach ($args as $key => $value) {
@@ -210,16 +211,14 @@ class OpsviewAPI
         }
     }
 
-    protected function acknowledge($alerting, $comment)
+    protected function acknowledge($alerting, $comment, $notify = true, $autoremovecomment = true)
     {
         $hosts = array();
         $services= array();
         $post_args = '';
         $this->login();
 
-        //set curl opts
-
-        foreach($alerting as $host => $service) {
+        foreach ($alerting as $host => $service) {
             if ($service == '') {
                 $hosts[] = $host;
             } else {
@@ -227,8 +226,34 @@ class OpsviewAPI
             }
         }
 
-        //set post args
-        //curl_exec
+        foreach ($hosts as $host) {
+                $post_args .= '&' . 'host_selection=' . urlencode($host);
+        }
+        foreach ($services as $service) {
+            $post_args .= '&' . 'service_selection=' . urlencode($service);
+        }
+
+        if ($post_args == '') {
+            //stop here if we're not acknowledging anything
+            return false;
+        } else {
+            curl_setopt_array($this->curl_handle, array(
+                CURLOPT_URL             =>  $this->config['base_url'] .
+                    $this->api_urls['acknowledge'],
+                CURLOPT_POSTFIELDS      =>  $this->format_url_args(array(
+                        'from'              =>  $this->config['base_url'],
+                        'submit'            =>  'Submit',
+                        'comment'           =>  $comment,
+                        'notify'            =>  ($notify ? 'on' : 'off'),
+                        'autoremovecomment' =>  ($autoremovecomment ? 'on' : 'off'),
+                    )) . $post_args,
+                CURLOPT_RETURNTRANSFER  =>  true,
+                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
+                    PATH_SEPARATOR . $this->cookie_file,
+            ));
+
+            return curl_exec($this->curl_handle);
+        }
     }
 }
 ?>
