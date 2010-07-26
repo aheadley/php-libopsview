@@ -223,6 +223,13 @@ class OpsviewAPI
         return false;
     }
 
+    public function cloneHost($new_host_name, $old_host_name)
+    {
+        $xml = '<opsview><host action="create"><clone><name>%s</name></clone>' .
+            '<name>%s</name></host></opsview>';
+        return $this->sendXmlToApi(sprintf($xml, $old_host_name, $new_host_name));
+    }
+
     public function deleteHostById($host_id)
     {
         $xml = '<opsview><host action="delete" by_id="%s"/></opsview>';
@@ -237,7 +244,7 @@ class OpsviewAPI
 
     public function reload()
     {
-        return false;
+        return $this->sendXmlToApi('<opsview><system action="reload"/></opsview>');
     }
 
     public function scheduleDowntimeHostgroup($hostgroup, $comment)
