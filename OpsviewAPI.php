@@ -52,9 +52,9 @@ class OpsviewAPI
         curl_close($this->curl_handle);
     }
 
-    public function getStatusGeneral($filters)
+    public function getStatusAll($filters)
     {
-
+        
     }
 
     public function getStatusService($host_name, $service_name)
@@ -67,8 +67,7 @@ class OpsviewAPI
                 $host_status = simplexml_load_string($this->getStatusHost($host_name))
                     ->data->list->services;
                 foreach ($host_status as $service) {
-                    $attr = $service->attributes();
-                    if ($attr['name'] == $service_name) {
+                    if ($service->attributes()->name == $service_name) {
                         $service_status = $service;
                         break;
                     }
@@ -139,7 +138,9 @@ class OpsviewAPI
     public function acknowledgeHost($host, $comment, $notify = true,
         $autoremovecomment = true)
     {
-        return $this->acknowledge(array($host), $comment, $notify, $autoremovecomment);
+        return $this->acknowledge(array(
+            $host => null,
+            ), $comment, $notify, $autoremovecomment);
     }
 
     public function acknowledgeAll($comment, $notify = false, $autoremovecomment = true)
@@ -212,12 +213,12 @@ class OpsviewAPI
 
     public function scheduleDowntimeHostgroup($hostgroup, $comment)
     {
-
+        return false;
     }
 
     public function disableNotificationsHostgroup($hostgroup)
     {
-
+        return false;
     }
 
     protected function login()
