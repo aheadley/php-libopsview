@@ -19,7 +19,7 @@ class OpsviewAPI
         'status_service'    =>  '/api/status/service',
         'status_hostgroup'  =>  '/api/status/hostgroup',
         'login'             =>  '/login',
-        'other'             =>  '/api',
+        'api'             =>  '/api',
     );
     
     public function __construct($config = 'opsview.ini')
@@ -223,9 +223,16 @@ class OpsviewAPI
         return false;
     }
 
-    public function deleteHost($host_name)
+    public function deleteHostById($host_id)
     {
-        return false;
+        $xml = '<opsview><host action="delete" by_id="%s"/></opsview>';
+        return $this->sendXmlToApi(sprintf($xml, $host_id));
+    }
+
+    public function deleteHostByName($host_name)
+    {
+        $xml = '<opsview><host action="delete" by_name="%s"/></opsview>';
+        return $this->sendXmlToApi(sprintf($xml, $host_name));
     }
 
     public function reload()
@@ -333,6 +340,30 @@ class OpsviewAPI
 
             return curl_exec($this->curl_handle);
         }
+    }
+
+    protected function sendXmlToApi($xml_string)
+    {
+        if (!simplexml_load_string($xml_string)) {
+            return false;
+        } else {
+            $this->login();
+
+            curl_setopt_array($this->curl_handle, array(
+                CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['api'],
+                CURLOPT_RETURNTRANSFER  =>  true,
+                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . $this->cookie_file,
+                CURLOPT_POST            =>  true,
+                CURLOPT_POSTFIELDS      =>  $this->escapeXml($xml_string),
+            ));
+
+            return curl_exec($this->curl_handle);
+        }
+    }
+
+    protected function escapeXml($xml)
+    {
+        return preg_replace('/(\r?\n)+/', '', addslashes($xml));
     }
 }
 ?>
