@@ -15,6 +15,7 @@ class OpsviewAPI
     );
     protected $api_urls = array(
         'acknowledge'       =>  '/status/service',
+        'status_all'        =>  '/status/service',
         'status_service'    =>  '/api/status/service',
         'status_hostgroup'  =>  '/api/status/hostgroup',
         'login'             =>  '/login',
@@ -52,9 +53,30 @@ class OpsviewAPI
         curl_close($this->curl_handle);
     }
 
-    public function getStatusAll($filters)
+    public function getStatusAll($filters_raw)
     {
-        
+        $status = null;
+        $filters = '';
+        $this->login();
+
+        if (is_array($filters_raw) && count($filters_raw) > 0) {
+            foreach ($filters_raw as $filter) {
+                $filters .= $this->states[$filter] . '&';
+            }
+            $filters = substr($filters, 0, strlen($filters)-1);
+        }
+
+        curl_setopt_array($this->curl_handle, array(
+            CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['status_all'] .
+                '?' . $filters,
+            CURLOPT_RETURNTRANSFER  =>  true,
+            CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . $this->cookie_file,
+            CURLOPT_HTTPHEADER      =>  array(
+                'Content-Type: ' . $this->content_type,
+            ),
+        ));
+
+        return curl_exec($this->curl_handle);
     }
 
     public function getStatusService($host_name, $service_name)
