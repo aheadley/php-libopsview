@@ -2,11 +2,7 @@
 
 class OpsviewAPI
 {
-    protected $config = array(
-        'status_cache_time' =>  10,
-        'cookie_cache_time' =>  14400, //60*60*4 (4 hours)
-        'content_type'      =>  'json',
-    );
+    protected $config;
     protected $curl_handle;
     protected $cookie_file;
     protected $content_type;
@@ -28,6 +24,14 @@ class OpsviewAPI
     
     public function __construct($config = 'opsview.ini')
     {
+        $this->config = array(
+            'status_cache_time' =>  10,
+            'cookie_cache_time' =>  60*60*4, // 4 hours
+            'content_type'      =>  'json',
+            'cache_dir'         =>  getcwd() . DIRECTORY_SEPARATOR . 'cache',
+            'use_cache'         =>  (is_writable($this->config['cache_dir']) ?
+                true : false),
+        );
         if (is_array($config)) {
             $this->config = array_replace($this->config, $config);
         } elseif (is_string($config) && is_readable($config)) {
@@ -124,7 +128,7 @@ class OpsviewAPI
                 $this->api_urls['status_host'] . '?host=' . $host_name,
             CURLOPT_RETURNTRANSFER  =>  true,
             CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
-                PATH_SEPARATOR . $this->cookie_file,
+                DIRECTORY_SEPARATOR . $this->cookie_file,
             CURLOPT_HTTPHEADER      =>  array(
                 'Content-Type: ' . $this->content_type,
             ),
@@ -144,7 +148,7 @@ class OpsviewAPI
                 $this->api_urls['status_hostgroup'] . '/' . $hostgroup_id,
             CURLOPT_RETURNTRANSFER  =>  true,
             CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
-                PATH_SEPARATOR . $this->cookie_file,
+                DIRECTORY_SEPARATOR . $this->cookie_file,
             CURLOPT_HTTPHEADER      =>  array(
                 'Content-Type: ' . $this->content_type,
                 ),
@@ -263,7 +267,7 @@ class OpsviewAPI
 
     protected function login()
     {
-        $cookie_file = $this->config['cache_dir'] . PATH_SEPARATOR .
+        $cookie_file = $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
             $this->cookie_file;
         $post_data = array(
             'login_username'    =>  $this->config['username'],
@@ -346,7 +350,7 @@ class OpsviewAPI
                     )) . $post_args,
                 CURLOPT_RETURNTRANSFER  =>  true,
                 CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
-                    PATH_SEPARATOR . $this->cookie_file,
+                    DIRECTORY_SEPARATOR . $this->cookie_file,
             ));
 
             return curl_exec($this->curl_handle);
@@ -375,6 +379,11 @@ class OpsviewAPI
     protected function escapeXml($xml)
     {
         return preg_replace('/(\r?\n)+/', '', addslashes($xml));
+    }
+
+    protected function cache($key)
+    {
+        return false;
     }
 }
 ?>
