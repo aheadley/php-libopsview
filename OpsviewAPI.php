@@ -108,10 +108,10 @@ class OpsviewAPI
             switch ($this->config['content_type'] ) {
                 case 'xml':
                     $host_status = simplexml_load_string($this->getStatusHost($host_name))
-                        ->data->list->services;
+                        ->opsview->data->list->services;
                     foreach ($host_status as $service) {
                         if ($service->attributes()->name == $service_name) {
-                            $service_status = $service;
+                            $service_status = $service->asXML();
                             break;
                         }
                     }
@@ -128,6 +128,7 @@ class OpsviewAPI
                     break;
             }
 
+            $this->cache($cache_key, $service_status);
             return $service_status;
         }
     }
@@ -135,41 +136,53 @@ class OpsviewAPI
     public function getStatusHost($host_name)
     {
         $host_status = null;
-        //TODO: check cache here
-        $this->login();
-        curl_setopt_array($this->curl_handle, array(
-            CURLOPT_URL             =>  $this->config['base_url'] .
-                $this->api_urls['status_host'] . '?host=' . $host_name,
-            CURLOPT_RETURNTRANSFER  =>  true,
-            CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
-                DIRECTORY_SEPARATOR . $this->cookie_file,
-            CURLOPT_HTTPHEADER      =>  array(
-                'Content-Type: ' . $this->content_type,
-            ),
-        ));
-        $host_status = trim(curl_exec($this->curl_handle));
+        $cache_key = 'status-host-' . $hostname;
 
-        return $host_status;
+        if ($this->checkCache($cache_key)) {
+            return $this->getCache($cache_key);
+        } else {
+            $this->login();
+            curl_setopt_array($this->curl_handle, array(
+                CURLOPT_URL             =>  $this->config['base_url'] .
+                    $this->api_urls['status_host'] . '?host=' . $host_name,
+                CURLOPT_RETURNTRANSFER  =>  true,
+                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
+                    DIRECTORY_SEPARATOR . $this->cookie_file,
+                CURLOPT_HTTPHEADER      =>  array(
+                    'Content-Type: ' . $this->content_type,
+                ),
+            ));
+
+            $host_status = trim(curl_exec($this->curl_handle));
+            $this->cache($cache_key, $host_status);
+            return $host_status;
+        }
     }
 
     public function getStatusHostgroup($hostgroup_id)
     {
         $hostgroup_status = null;
-        //TODO: check cache here
-        $this->login();
-        curl_setopt_array($this->curl_handle, array(
-            CURLOPT_URL             =>  $this->config['base_url'] .
-                $this->api_urls['status_hostgroup'] . '/' . $hostgroup_id,
-            CURLOPT_RETURNTRANSFER  =>  true,
-            CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
-                DIRECTORY_SEPARATOR . $this->cookie_file,
-            CURLOPT_HTTPHEADER      =>  array(
-                'Content-Type: ' . $this->content_type,
-                ),
-        ));
-        $hostgroup_status = trim(curl_exec($this->curl_handle));
+        $cache_key = 'status-hostgroup-' . $hostgroup_id;
 
-        return $hostgroup_status;
+        if ($this->checkCache($cache_key)) {
+            return $this->getCache($cache_key);
+        } else {
+            $this->login();
+            curl_setopt_array($this->curl_handle, array(
+                CURLOPT_URL             =>  $this->config['base_url'] .
+                    $this->api_urls['status_hostgroup'] . '/' . $hostgroup_id,
+                CURLOPT_RETURNTRANSFER  =>  true,
+                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
+                    DIRECTORY_SEPARATOR . $this->cookie_file,
+                CURLOPT_HTTPHEADER      =>  array(
+                    'Content-Type: ' . $this->content_type,
+                    ),
+            ));
+
+            $hostgroup_status = trim(curl_exec($this->curl_handle));
+            $this->cache($cache_key, $hostgroup_status);
+            return $hostgroup_status;
+        }
     }
 
     public function acknowledgeService($host, $service, $comment,
@@ -205,7 +218,7 @@ class OpsviewAPI
              * TODO: fix this, use arrays for services maybe?
              */
             case 'xml':
-                $alerting_raw = simplexml_load_string($alerting)->data->list;
+                $alerting_raw = simplexml_load_string($alerting)->opsview->data->list;
                 foreach ($alerting_raw as $host_raw) {
                     if ($host_raw->attributes()->current_check_attempt ==
                         $host_raw->attributes()->max_check_attempts) {
