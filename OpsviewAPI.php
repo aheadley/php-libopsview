@@ -2,7 +2,11 @@
 
 class OpsviewAPI
 {
-    protected $config;
+    protected $config = array(
+        'status_cache_time' =>  10,
+        'cookie_cache_time' =>  14400, //60*60*4 (4 hours)
+        'content_type'      =>  'json',
+    );
     protected $curl_handle;
     protected $cookie_file;
     protected $content_type;
@@ -24,15 +28,15 @@ class OpsviewAPI
     
     public function __construct($config = 'opsview.ini')
     {
-        //TODO: need to set defaults then use something like array_replace()
-        //  to overwrite default settings
         if (is_array($config)) {
-            $this->config = $config;
+            $this->config = array_replace($this->config, $config);
         } elseif (is_string($config) && is_readable($config)) {
-            $this->config = parse_ini_file($config);
-        } else {
-            //TODO: change this to something meaningful
-            throw new Exception('no config');
+            $this->config = array_replace($this->config, parse_ini_file($config));
+        }
+
+        if (!isset($this->config['base_url']) || !isset($this->config['username']) ||
+            !isset($this->config['password'])) {
+            throw new RuntimeException('Invalid configuration');
         }
 
         $this->curl_handle = curl_init();
