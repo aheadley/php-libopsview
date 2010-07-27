@@ -66,57 +66,70 @@ class OpsviewAPI
     {
         $status = null;
         $filters = '';
-        $this->login();
+        $cache_key = 'status-all';
 
-        if (is_array($filters_raw) && count($filters_raw) > 0) {
-            foreach ($filters_raw as $filter) {
-                $filters .= $this->states[$filter] . '&';
+        if ($this->checkCache($cache_key)) {
+            return $this->getCache($cache_key);
+        } else {
+            $this->login();
+
+            if (is_array($filters_raw) && count($filters_raw) > 0) {
+                foreach ($filters_raw as $filter) {
+                    $filters .= $this->states[$filter] . '&';
+                }
+                $filters = substr($filters, 0, strlen($filters)-1);
             }
-            $filters = substr($filters, 0, strlen($filters)-1);
+
+            curl_setopt_array($this->curl_handle, array(
+                CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['status_all'] .
+                    '?' . $filters,
+                CURLOPT_RETURNTRANSFER  =>  true,
+                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . $this->cookie_file,
+                CURLOPT_HTTPHEADER      =>  array(
+                    'Content-Type: ' . $this->content_type,
+                ),
+            ));
+
+            $response = curl_exec($this->curl_handle);
+            $this->cache($cache_key, $response);
+            return $response;
         }
-
-        curl_setopt_array($this->curl_handle, array(
-            CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['status_all'] .
-                '?' . $filters,
-            CURLOPT_RETURNTRANSFER  =>  true,
-            CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . $this->cookie_file,
-            CURLOPT_HTTPHEADER      =>  array(
-                'Content-Type: ' . $this->content_type,
-            ),
-        ));
-
-        return curl_exec($this->curl_handle);
     }
 
     public function getStatusService($host_name, $service_name)
     {
         $host_status = null;
         $service_status = null;
-        
-        switch ($this->config['content_type'] ) {
-            case 'xml':
-                $host_status = simplexml_load_string($this->getStatusHost($host_name))
-                    ->data->list->services;
-                foreach ($host_status as $service) {
-                    if ($service->attributes()->name == $service_name) {
-                        $service_status = $service;
-                        break;
-                    }
-                }
-                break;
-            case 'json':
-            default:
-                $host_status = json_decode($this->getStatusHost($host_name),true);
-                foreach ($host_status['service']['list'][0]['services'] as $service) {
-                    if ($service['name'] == $service_name) {
-                        $service_status = json_encode($service);
-                        break;
-                    }
-                }
-                break;
-        }
+        $cache_key = 'status-service-' . $host_name . '-' . $service_name;
 
-        return $service_status;
+        if ($this->checkCache($cache_key)) {
+            return $this->getCache($cache_key);
+        } else {
+            switch ($this->config['content_type'] ) {
+                case 'xml':
+                    $host_status = simplexml_load_string($this->getStatusHost($host_name))
+                        ->data->list->services;
+                    foreach ($host_status as $service) {
+                        if ($service->attributes()->name == $service_name) {
+                            $service_status = $service;
+                            break;
+                        }
+                    }
+                    break;
+                case 'json':
+                default:
+                    $host_status = json_decode($this->getStatusHost($host_name),true);
+                    foreach ($host_status['service']['list'][0]['services'] as $service) {
+                        if ($service['name'] == $service_name) {
+                            $service_status = json_encode($service);
+                            break;
+                        }
+                    }
+                    break;
+            }
+
+            return $service_status;
+        }
     }
 
     public function getStatusHost($host_name)
@@ -177,7 +190,8 @@ class OpsviewAPI
     public function acknowledgeAll($comment, $notify = false, $autoremovecomment = true)
     {
         $alerting = array();
-        $alerting_raw = $this->getStatusGeneral(array(
+        //TODO: this is wrong, need to change either here or filters in getStatusAll()
+        $alerting_raw = $this->getStatusAll(array(
             $this->states['critical'],
             $this->states['warning'],
             $this->states['unhandled'],
@@ -387,7 +401,9 @@ class OpsviewAPI
         $cache_file = $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
             basename($key) . '.' . $this->config['content_type'] . '.' .
             $this->cache_file_suffix;
-        return (@file_put_contents($cache_file, $string, LOCK_EX) && true);
+
+        return ($this->config['use_cache'] &&
+            @file_put_contents($cache_file, $string, LOCK_EX) && true);
     }
 
     protected function getCache($key)
@@ -395,6 +411,7 @@ class OpsviewAPI
         $cache_file = $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
             basename($key) . '.' . $this->config['content_type'] . '.' .
             $this->cache_file_suffix;
+
         return @file_get_contents($cache_file, false);
     }
 
