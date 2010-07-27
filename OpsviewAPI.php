@@ -19,7 +19,7 @@ class OpsviewAPI
         'status_service'    =>  '/api/status/service',
         'status_hostgroup'  =>  '/api/status/hostgroup',
         'login'             =>  '/login',
-        'api'             =>  '/api',
+        'api'               =>  '/api',
     );
     
     public function __construct($config = 'opsview.ini')
@@ -272,7 +272,7 @@ class OpsviewAPI
             CURLOPT_URL             =>  $this->config['base_url'] .
                 $this->api_urls['login'],
             CURLOPT_RETURNTRANSFER  =>  true,
-            CURLOPT_POSTFIELDS      =>  $this->format_url_args($post_data),
+            CURLOPT_POSTFIELDS      =>  $this->formatUrlArgs($post_data),
             CURLOPT_COOKIEJAR       =>  $cookie_file,
         ));
 
@@ -288,7 +288,7 @@ class OpsviewAPI
         }
     }
 
-    protected function format_url_args($args)
+    protected function formatUrlArgs($args)
     {
         //TODO: make this handle arrays (like would be needed for acknowledgements
         if (is_array($args) and count($args) > 0) {
@@ -333,7 +333,7 @@ class OpsviewAPI
             curl_setopt_array($this->curl_handle, array(
                 CURLOPT_URL             =>  $this->config['base_url'] .
                     $this->api_urls['acknowledge'],
-                CURLOPT_POSTFIELDS      =>  $this->format_url_args(array(
+                CURLOPT_POSTFIELDS      =>  $this->formatUrlArgs(array(
                         'from'              =>  $this->config['base_url'],
                         'submit'            =>  'Submit',
                         'comment'           =>  $comment,
