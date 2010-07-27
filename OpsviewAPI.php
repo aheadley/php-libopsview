@@ -312,7 +312,7 @@ class OpsviewAPI
             CURLOPT_COOKIEJAR       =>  $cookie_file,
         ));
 
-        if (file_exists($cookie_file)
+        if (is_readable($cookie_file)
             && (time() - filemtime($cookie_file)) <
                 $this->config['cookie_cache_time']) {
             //cookie file exists and is within cache window so we're still
@@ -395,7 +395,8 @@ class OpsviewAPI
             curl_setopt_array($this->curl_handle, array(
                 CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['api'],
                 CURLOPT_RETURNTRANSFER  =>  true,
-                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . $this->cookie_file,
+                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
+                    $this->cookie_file,
                 CURLOPT_POST            =>  true,
                 CURLOPT_POSTFIELDS      =>  $this->escapeXml($xml_string),
             ));
