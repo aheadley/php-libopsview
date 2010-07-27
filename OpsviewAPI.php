@@ -6,6 +6,7 @@ class OpsviewAPI
     protected $curl_handle;
     protected $cookie_file;
     protected $content_type;
+    protected $cache_file_suffix = 'cache';
     protected $states = array(
         'ok'        =>  'state=0',
         'warning'   =>  'state=1',
@@ -44,7 +45,7 @@ class OpsviewAPI
         }
 
         $this->curl_handle = curl_init();
-        $this->cookie_file = 'cookie_file.txt';
+        $this->cookie_file = 'cookie.' . $this->cache_file_suffix;
         switch ($this->config['content_type']) {
             case 'xml':
                 $this->content_type = 'text/xml';
@@ -381,9 +382,20 @@ class OpsviewAPI
         return preg_replace('/(\r?\n)+/', '', addslashes($xml));
     }
 
-    protected function cache($key)
+    protected function cache($key, $string)
     {
-        return false;
+        $cache_file = $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
+            basename($key) . '.' . $this->config['content_type'] . '.' .
+            $this->cache_file_suffix;
+        return @file_put_contents($cache_file, $string, LOCK_EX) && true;
+    }
+
+    protected function getCache($key)
+    {
+        $cache_file = $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
+            basename($key) . '.' . $this->config['content_type'] . '.' .
+            $this->cache_file_suffix;
+        return @file_get_contents($cache_file, false);
     }
 }
 ?>
