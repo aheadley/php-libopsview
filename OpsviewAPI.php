@@ -387,7 +387,7 @@ class OpsviewAPI
         $cache_file = $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
             basename($key) . '.' . $this->config['content_type'] . '.' .
             $this->cache_file_suffix;
-        return @file_put_contents($cache_file, $string, LOCK_EX) && true;
+        return (@file_put_contents($cache_file, $string, LOCK_EX) && true);
     }
 
     protected function getCache($key)
@@ -396,6 +396,16 @@ class OpsviewAPI
             basename($key) . '.' . $this->config['content_type'] . '.' .
             $this->cache_file_suffix;
         return @file_get_contents($cache_file, false);
+    }
+
+    protected function checkCache($key)
+    {
+        $cache_file = $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
+            basename($key) . '.' . $this->config['content_type'] . '.' .
+            $this->cache_file_suffix;
+
+        return ($this->config['use_cache'] && is_readable($cache_file) &&
+            (abs(time() - filemtime($cache_file)) <= $this->config['status_cache_time']));
     }
 }
 ?>
