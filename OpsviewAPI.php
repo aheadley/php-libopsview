@@ -330,25 +330,23 @@ class OpsviewAPI
 
     protected function acknowledge($alerting, $comment, $notify = true, $autoremovecomment = true)
     {
-        $hosts = array();
-        $services= array();
+        $host_selection = array();
+        $service_selection = array();
         $post_args = '';
         $this->login();
 
         foreach ($alerting as $host => $service) {
-            if ($service == '') {
-                $hosts[] = $host;
+            if ($service == null) {
+                $host_selection[] = $host;
             } else {
-                $services[] = $host . ';' . $service;
+                $service_selection[] = $host . ';' . $service;
             }
         }
 
-        foreach ($hosts as $host) {
-                $post_args .= '&' . 'host_selection=' . urlencode($host);
-        }
-        foreach ($services as $service) {
-            $post_args .= '&' . 'service_selection=' . urlencode($service);
-        }
+        $post_args = implode('&', array(
+            http_build_query($host_selection, '', '&'),
+            http_build_query($service_selection, '', '&'),
+        ));
 
         if ($post_args == '') {
             //stop here if we're not acknowledging anything
@@ -363,7 +361,7 @@ class OpsviewAPI
                         'comment'           =>  $comment,
                         'notify'            =>  ($notify ? 'on' : 'off'),
                         'autoremovecomment' =>  ($autoremovecomment ? 'on' : 'off'),
-                    )) . $post_args,
+                    )) . '&' . $post_args,
                 CURLOPT_RETURNTRANSFER  =>  true,
                 CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
                     DIRECTORY_SEPARATOR . $this->cookie_file,
