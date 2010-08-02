@@ -83,10 +83,10 @@ class OpsviewAPI
         curl_close($this->curl_handle_post);
     }
 
-    public function getStatusAll($filters_raw)
+    public function getStatusAll($filters)
     {
         $status = null;
-        $filters = '';
+        $filter_arg = '';
         $cache_key = 'status-all';
 
         if ($this->checkCache($cache_key)) {
@@ -94,16 +94,16 @@ class OpsviewAPI
         } else {
             $this->login();
 
-            if (is_array($filters_raw) && count($filters_raw) > 0) {
-                foreach ($filters_raw as $filter) {
-                    $filters .= $this->states[$filter] . '&';
+            if (is_array($filters) && count($filters) > 0) {
+                foreach ($filters as $filter) {
+                    $filter_arg .= $this->states[$filter] . '&';
                 }
-                $filters = substr($filters, 0, strlen($filters)-1);
+                $filter_arg = substr($filter_arg, 0, strlen($filter_arg)-1);
             }
 
             curl_setopt_array($this->curl_handle_get, array(
                 CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['status_all'] .
-                    '?' . $filters,
+                    '?' . $filter_arg,
                 CURLOPT_HTTPHEADER      =>  array(
                     'Content-Type: ' . $this->content_type,
                 ),
