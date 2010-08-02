@@ -6,6 +6,7 @@ class OpsviewAPI
     protected $curl_handle;
     protected $cookie_file;
     protected $content_type;
+    protected $curl_user_agent;
     protected $cache_file_suffix = 'cache';
     protected $states = array(
         'ok'        =>  'state=0',
@@ -18,6 +19,7 @@ class OpsviewAPI
         'acknowledge'       =>  '/status/service',
         'status_all'        =>  '/status/service',
         'status_service'    =>  '/api/status/service',
+        'status_host'       =>  '/api/status/service',
         'status_hostgroup'  =>  '/api/status/hostgroup',
         'login'             =>  '/login',
         'api'               =>  '/api',
@@ -25,6 +27,7 @@ class OpsviewAPI
     
     public function __construct($config = 'opsview.ini')
     {
+        $this->curl_user_agent = 'PHP ' . phpversion() . '/cURL';
         $this->config = array(
             'status_cache_time' =>  10,
             'cookie_cache_time' =>  60*60*4, // 4 hours
@@ -136,7 +139,7 @@ class OpsviewAPI
     public function getStatusHost($host_name)
     {
         $host_status = null;
-        $cache_key = 'status-host-' . $hostname;
+        $cache_key = 'status-host-' . $host_name;
 
         if ($this->checkCache($cache_key)) {
             return $this->getCache($cache_key);
@@ -308,8 +311,9 @@ class OpsviewAPI
             CURLOPT_URL             =>  $this->config['base_url'] .
                 $this->api_urls['login'],
             CURLOPT_RETURNTRANSFER  =>  true,
-            CURLOPT_POSTFIELDS      =>  $this->formatUrlArgs($post_data),
+            CURLOPT_POSTFIELDS      =>  http_build_query($post_data, '', '&'),
             CURLOPT_COOKIEJAR       =>  $cookie_file,
+            CURLOPT_USERAGENT       =>  $this->curl_user_agent,
         ));
 
         if (is_readable($cookie_file)
@@ -321,22 +325,6 @@ class OpsviewAPI
         } else {
             //TODO: actually check the output of curl to see if login was (probably) successful
             return curl_exec($this->curl_handle);
-        }
-    }
-
-    protected function formatUrlArgs($args)
-    {
-        //TODO: make this handle arrays (like would be needed for acknowledgements
-        if (is_array($args) and count($args) > 0) {
-            $args_encoded = '';
-            foreach ($args as $key => $value) {
-                $args_encoded .= urlencode($key) . '=' . urlencode($value) . '&';
-            }
-            $args_encoded = substr($args_encoded, 0, strlen($args_encoded)-1);
-
-            return $args_encoded;
-        } else {
-            return null;
         }
     }
 
@@ -369,7 +357,7 @@ class OpsviewAPI
             curl_setopt_array($this->curl_handle, array(
                 CURLOPT_URL             =>  $this->config['base_url'] .
                     $this->api_urls['acknowledge'],
-                CURLOPT_POSTFIELDS      =>  $this->formatUrlArgs(array(
+                CURLOPT_POSTFIELDS      =>  $this->http_build_query(array(
                         'from'              =>  $this->config['base_url'],
                         'submit'            =>  'Submit',
                         'comment'           =>  $comment,
