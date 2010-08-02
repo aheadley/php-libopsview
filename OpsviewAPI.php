@@ -15,7 +15,7 @@ class OpsviewAPI
     );
     protected $api_urls = array(
         'acknowledge'       =>  '/status/service/acknowledge',
-        'status_all'        =>  '/status/service',
+        'status_all'        =>  '/api/status/service',
         'status_service'    =>  '/api/status/service',
         'status_host'       =>  '/api/status/service',
         'status_hostgroup'  =>  '/api/status/hostgroup',
@@ -33,12 +33,15 @@ class OpsviewAPI
             'use_cache'         =>  (is_writable($this->config['cache_dir']) ?
                 true : false),
         );
-        if (is_array($config)) {
-            $this->config = array_replace($this->config, $config);
-        } elseif (is_string($config) && is_readable($config)) {
-            $this->config = array_replace($this->config, parse_ini_file($config));
-        }
 
+        if (is_string($config) && is_readable($config)) {
+            $config = parse_ini_file($config);
+        }
+        if (is_array($config)) {
+            foreach ($config as $key => $value) {
+                $this->config[$key] = $value;
+            }
+        }
         if (!isset($this->config['base_url']) || !isset($this->config['username']) ||
             !isset($this->config['password'])) {
             throw new RuntimeException('Invalid configuration');
