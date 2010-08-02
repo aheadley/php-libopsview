@@ -3,9 +3,8 @@
 class OpsviewAPI
 {
     protected $config;
-    protected $curl_handle;
-    protected $cookie_file;
-    protected $content_type;
+    protected $curl_handle_get, $curl_handle_post;
+    protected $cookie_file, $content_type, $curl_user_agent;
     protected $cache_file_suffix = 'cache';
     protected $states = array(
         'ok'        =>  'state=0',
@@ -18,6 +17,7 @@ class OpsviewAPI
         'acknowledge'       =>  '/status/service',
         'status_all'        =>  '/status/service',
         'status_service'    =>  '/api/status/service',
+        'status_host'       =>  '/api/status/service',
         'status_hostgroup'  =>  '/api/status/hostgroup',
         'login'             =>  '/login',
         'api'               =>  '/api',
@@ -44,7 +44,8 @@ class OpsviewAPI
             throw new RuntimeException('Invalid configuration');
         }
 
-        $this->curl_handle = curl_init();
+        $this->curl_user_agent = curl_version();
+        $this->curl_user_agent = 'PHP ' . phpversion() . '/cURL ' . $this->curl_user_agent['version'];
         $this->cookie_file = 'cookie.' . $this->cache_file_suffix;
         switch ($this->config['content_type']) {
             case 'xml':
@@ -55,11 +56,29 @@ class OpsviewAPI
                 $this->content_type = 'application/json';
                 break;
         }
+        $this->curl_handle_post = curl_init();
+        $this->curl_handle_get = curl_init();
+        curl_setopt_array($this->curl_handle_post, array(
+            CURLOPT_RETURNTRANSFER  =>  true,
+            CURLOPT_POST            =>  true,
+            CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
+                $this->cookie_file,
+            CURLOPT_COOKIEJAR       =>  $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
+                $this->cookie_file,
+        ));
+        curl_setopt_array($this->curl_handle_get, array(
+            CURLOPT_RETURNTRANSFER  =>  true,
+            CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
+                $this->cookie_file,
+            CURLOPT_COOKIEJAR       =>  $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
+                $this->cookie_file,
+        ));
     }
 
     public function __destruct()
     {
-        curl_close($this->curl_handle);
+        curl_close($this->curl_handle_get);
+        curl_close($this->curl_handle_post);
     }
 
     public function getStatusAll($filters_raw)
@@ -80,7 +99,7 @@ class OpsviewAPI
                 $filters = substr($filters, 0, strlen($filters)-1);
             }
 
-            curl_setopt_array($this->curl_handle, array(
+            curl_setopt_array($this->curl_handle_get, array(
                 CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['status_all'] .
                     '?' . $filters,
                 CURLOPT_RETURNTRANSFER  =>  true,
@@ -90,7 +109,7 @@ class OpsviewAPI
                 ),
             ));
 
-            $response = curl_exec($this->curl_handle);
+            $response = curl_exec($this->curl_handle_get);
             $this->cache($cache_key, $response);
             return $response;
         }
@@ -136,13 +155,13 @@ class OpsviewAPI
     public function getStatusHost($host_name)
     {
         $host_status = null;
-        $cache_key = 'status-host-' . $hostname;
+        $cache_key = 'status-host-' . $host_name;
 
         if ($this->checkCache($cache_key)) {
             return $this->getCache($cache_key);
         } else {
             $this->login();
-            curl_setopt_array($this->curl_handle, array(
+            curl_setopt_array($this->curl_handle_post, array(
                 CURLOPT_URL             =>  $this->config['base_url'] .
                     $this->api_urls['status_host'] . '?host=' . $host_name,
                 CURLOPT_RETURNTRANSFER  =>  true,
@@ -153,7 +172,7 @@ class OpsviewAPI
                 ),
             ));
 
-            $host_status = trim(curl_exec($this->curl_handle));
+            $host_status = trim(curl_exec($this->curl_handle_post));
             $this->cache($cache_key, $host_status);
             return $host_status;
         }
@@ -168,7 +187,7 @@ class OpsviewAPI
             return $this->getCache($cache_key);
         } else {
             $this->login();
-            curl_setopt_array($this->curl_handle, array(
+            curl_setopt_array($this->curl_handle_post, array(
                 CURLOPT_URL             =>  $this->config['base_url'] .
                     $this->api_urls['status_hostgroup'] . '/' . $hostgroup_id,
                 CURLOPT_RETURNTRANSFER  =>  true,
@@ -179,7 +198,7 @@ class OpsviewAPI
                     ),
             ));
 
-            $hostgroup_status = trim(curl_exec($this->curl_handle));
+            $hostgroup_status = trim(curl_exec($this->curl_handle_post));
             $this->cache($cache_key, $hostgroup_status);
             return $hostgroup_status;
         }
@@ -304,12 +323,13 @@ class OpsviewAPI
             'login'             =>  'Log In',
         );
 
-        curl_setopt_array($this->curl_handle, array(
+        curl_setopt_array($this->curl_handle_post, array(
             CURLOPT_URL             =>  $this->config['base_url'] .
                 $this->api_urls['login'],
             CURLOPT_RETURNTRANSFER  =>  true,
-            CURLOPT_POSTFIELDS      =>  $this->formatUrlArgs($post_data),
+            CURLOPT_POSTFIELDS      =>  http_build_query($post_data, '', '&'),
             CURLOPT_COOKIEJAR       =>  $cookie_file,
+            CURLOPT_USERAGENT       =>  $this->curl_user_agent,
         ));
 
         if (is_readable($cookie_file)
@@ -320,68 +340,50 @@ class OpsviewAPI
             return true;
         } else {
             //TODO: actually check the output of curl to see if login was (probably) successful
-            return curl_exec($this->curl_handle);
-        }
-    }
-
-    protected function formatUrlArgs($args)
-    {
-        //TODO: make this handle arrays (like would be needed for acknowledgements
-        if (is_array($args) and count($args) > 0) {
-            $args_encoded = '';
-            foreach ($args as $key => $value) {
-                $args_encoded .= urlencode($key) . '=' . urlencode($value) . '&';
-            }
-            $args_encoded = substr($args_encoded, 0, strlen($args_encoded)-1);
-
-            return $args_encoded;
-        } else {
-            return null;
+            return curl_exec($this->curl_handle_post);
         }
     }
 
     protected function acknowledge($alerting, $comment, $notify = true, $autoremovecomment = true)
     {
-        $hosts = array();
-        $services= array();
+        $host_selection = array();
+        $service_selection = array();
         $post_args = '';
         $this->login();
 
         foreach ($alerting as $host => $service) {
-            if ($service == '') {
-                $hosts[] = $host;
+            if ($service == null) {
+                $host_selection[] = $host;
             } else {
-                $services[] = $host . ';' . $service;
+                $service_selection[] = $host . ';' . $service;
             }
         }
 
-        foreach ($hosts as $host) {
-                $post_args .= '&' . 'host_selection=' . urlencode($host);
-        }
-        foreach ($services as $service) {
-            $post_args .= '&' . 'service_selection=' . urlencode($service);
-        }
+        $post_args = implode('&', array(
+            http_build_query($host_selection, '', '&'),
+            http_build_query($service_selection, '', '&'),
+        ));
 
         if ($post_args == '') {
             //stop here if we're not acknowledging anything
             return false;
         } else {
-            curl_setopt_array($this->curl_handle, array(
+            curl_setopt_array($this->curl_handle_post, array(
                 CURLOPT_URL             =>  $this->config['base_url'] .
                     $this->api_urls['acknowledge'],
-                CURLOPT_POSTFIELDS      =>  $this->formatUrlArgs(array(
+                CURLOPT_POSTFIELDS      =>  $this->http_build_query(array(
                         'from'              =>  $this->config['base_url'],
                         'submit'            =>  'Submit',
                         'comment'           =>  $comment,
                         'notify'            =>  ($notify ? 'on' : 'off'),
                         'autoremovecomment' =>  ($autoremovecomment ? 'on' : 'off'),
-                    )) . $post_args,
+                    )) . '&' . $post_args,
                 CURLOPT_RETURNTRANSFER  =>  true,
                 CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
                     DIRECTORY_SEPARATOR . $this->cookie_file,
             ));
 
-            return curl_exec($this->curl_handle);
+            return curl_exec($this->curl_handle_post);
         }
     }
 
@@ -392,7 +394,7 @@ class OpsviewAPI
         } else {
             $this->login();
 
-            curl_setopt_array($this->curl_handle, array(
+            curl_setopt_array($this->curl_handle_post, array(
                 CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['api'],
                 CURLOPT_RETURNTRANSFER  =>  true,
                 CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
@@ -401,7 +403,7 @@ class OpsviewAPI
                 CURLOPT_POSTFIELDS      =>  $this->escapeXml($xml_string),
             ));
 
-            return curl_exec($this->curl_handle);
+            return curl_exec($this->curl_handle_post);
         }
     }
 
