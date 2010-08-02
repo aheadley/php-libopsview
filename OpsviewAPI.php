@@ -65,6 +65,7 @@ class OpsviewAPI
                 $this->cookie_file,
             CURLOPT_COOKIEJAR       =>  $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
                 $this->cookie_file,
+            CURLOPT_USERAGENT       =>  $this->curl_user_agent,
         ));
         curl_setopt_array($this->curl_handle_get, array(
             CURLOPT_RETURNTRANSFER  =>  true,
@@ -72,6 +73,7 @@ class OpsviewAPI
                 $this->cookie_file,
             CURLOPT_COOKIEJAR       =>  $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
                 $this->cookie_file,
+            CURLOPT_USERAGENT       =>  $this->curl_user_agent,
         ));
     }
 
@@ -102,8 +104,6 @@ class OpsviewAPI
             curl_setopt_array($this->curl_handle_get, array(
                 CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['status_all'] .
                     '?' . $filters,
-                CURLOPT_RETURNTRANSFER  =>  true,
-                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . $this->cookie_file,
                 CURLOPT_HTTPHEADER      =>  array(
                     'Content-Type: ' . $this->content_type,
                 ),
@@ -161,18 +161,15 @@ class OpsviewAPI
             return $this->getCache($cache_key);
         } else {
             $this->login();
-            curl_setopt_array($this->curl_handle_post, array(
+            curl_setopt_array($this->curl_handle_get, array(
                 CURLOPT_URL             =>  $this->config['base_url'] .
                     $this->api_urls['status_host'] . '?host=' . $host_name,
-                CURLOPT_RETURNTRANSFER  =>  true,
-                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
-                    DIRECTORY_SEPARATOR . $this->cookie_file,
                 CURLOPT_HTTPHEADER      =>  array(
                     'Content-Type: ' . $this->content_type,
                 ),
             ));
 
-            $host_status = trim(curl_exec($this->curl_handle_post));
+            $host_status = trim(curl_exec($this->curl_handle_get));
             $this->cache($cache_key, $host_status);
             return $host_status;
         }
@@ -187,12 +184,9 @@ class OpsviewAPI
             return $this->getCache($cache_key);
         } else {
             $this->login();
-            curl_setopt_array($this->curl_handle_post, array(
+            curl_setopt_array($this->curl_handle_get, array(
                 CURLOPT_URL             =>  $this->config['base_url'] .
                     $this->api_urls['status_hostgroup'] . '/' . $hostgroup_id,
-                CURLOPT_RETURNTRANSFER  =>  true,
-                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
-                    DIRECTORY_SEPARATOR . $this->cookie_file,
                 CURLOPT_HTTPHEADER      =>  array(
                     'Content-Type: ' . $this->content_type,
                     ),
@@ -326,10 +320,7 @@ class OpsviewAPI
         curl_setopt_array($this->curl_handle_post, array(
             CURLOPT_URL             =>  $this->config['base_url'] .
                 $this->api_urls['login'],
-            CURLOPT_RETURNTRANSFER  =>  true,
             CURLOPT_POSTFIELDS      =>  http_build_query($post_data, '', '&'),
-            CURLOPT_COOKIEJAR       =>  $cookie_file,
-            CURLOPT_USERAGENT       =>  $this->curl_user_agent,
         ));
 
         if (is_readable($cookie_file)
@@ -378,9 +369,6 @@ class OpsviewAPI
                         'notify'            =>  ($notify ? 'on' : 'off'),
                         'autoremovecomment' =>  ($autoremovecomment ? 'on' : 'off'),
                     )) . '&' . $post_args,
-                CURLOPT_RETURNTRANSFER  =>  true,
-                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] .
-                    DIRECTORY_SEPARATOR . $this->cookie_file,
             ));
 
             return curl_exec($this->curl_handle_post);
@@ -396,9 +384,6 @@ class OpsviewAPI
 
             curl_setopt_array($this->curl_handle_post, array(
                 CURLOPT_URL             =>  $this->config['base_url'] . $this->api_urls['api'],
-                CURLOPT_RETURNTRANSFER  =>  true,
-                CURLOPT_COOKIEFILE      =>  $this->config['cache_dir'] . DIRECTORY_SEPARATOR .
-                    $this->cookie_file,
                 CURLOPT_POST            =>  true,
                 CURLOPT_POSTFIELDS      =>  $this->escapeXml($xml_string),
             ));
