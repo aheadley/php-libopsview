@@ -1,0 +1,50 @@
+USAGE:
+<?php
+  $opsview = new OpsviewAPI('path/to/config/file.ini');
+  echo $opsview->getStatusAll();
+  if (isset($_GET['ack'])) {
+    $opsview->acknowledgeAll();
+  }
+?>
+
+#summary Available options for configuration
+= Config Options =
+ * *status_cache_time* (_int_): time to cache status check results
+ * *cookie_cache_time* (_int_): time between refreshing login cookie, should probably be a little less than login cookie expiration time
+ * *content_type* (_enum_ ['json'|'xml']): set comm protocol for use with opsview, affects input and output or something
+ * *use_cache* (_bool_): enable/disable caching status queries
+ * *base_url* (_string_): url to base of opsview, like _http://example.com/opsview_
+ * *username* (_string_): opsview username
+ * *password* (_string_): opsview password
+
+#summary Class member/method documentation
+= API Documentation =
+----
+== Members ==
+=== Public ===
+=== Protected ===
+ * _array_ *$config*: associative array holding config values
+ * _resource_ *$curl_handle*:
+ * _string_ *$cookie_file*: cookie filename
+ * _string_ *$content_type*:
+ * _string_ *$cache_file_suffix*: cache file extension
+ * _array_ *$states*: associtive array holding states => url_args
+ * _array_ *$api_urls*:
+=== Private ===
+----
+== Methods ==
+=== Public ===
+ * _string_ `getStatusAll($filters_raw)`: get status of all services/hosts filtered by `$filters_raw`
+ * _string_ `getStatusService($host_name, $service_name)`: get status for a single service
+ * _string_ `getStatusHost($host_name)`: get all status info for a single host, including services on that host
+ * _string_ `getStatusHostgroup($hostgroup_id)`: get status overview for hostgroup by id
+=== Protected ===
+ * `login()`: refreshes the login cookie (or creates a new one) unless the current one is still inside _cookie_cache_time_
+ * `formatUrlArgs($args)`: turns array into url encoded string useful for POST/GET requests
+ * `acknowledge($alerting, $comment)`: acknowledges hosts and services in `$alerting` with `$comment` comment, should be an array with the key being hosts and services being the value (and empty value for a host acknowledgement)
+ * `sendXmlToApi($xml_string)`: sends raw xml string to the api url
+ * `escapeXml($xml)`: escapes xml string for use in post query
+ * `cache($key, $string)`: stores string based on $key
+ * `getCache($key)`: retrieves string based on $key
+ * `checkCache($key)`: check if there is a string stored for $key and if it's inside cache_time. takes $config['use_cache'] into account
+=== Private ===
