@@ -212,7 +212,18 @@ class OpsviewRemote {
             $notify, $auto_remove_comment);
     }
 
-    public function createHost($attributes);
+    public function createHost($attributes) {
+        $required_attributes = array('name', 'ip');
+$xml_template = <<<'XML'
+<opsview>
+    <host action="create">
+        %s
+    </host>
+</opsview>
+XML;
+
+        return $this->_postXml(sprintf($xml_template, $this->_array_to_xml($attributes)));
+    }
     public function cloneHost($source_host, $dest_host, $attributes);
     public function deleteHost($host);
     public function scheduleDowntime($hostgroup, $start_time, $end_time, $comment);
@@ -288,5 +299,18 @@ class OpsviewRemote {
             $extra_data,
         )), '&'));
 
+    }
+
+    protected function _array_to_xml($data) {
+        $xml_string = '';
+        foreach ($data as $tag => $content) {
+            $xml_string .= "<${tag}>${content}</${tag}>";
+        }
+
+        return $xml_string;
+    }
+
+    protected function _postXml($xml_string) {
+        $this->login();
     }
 }
