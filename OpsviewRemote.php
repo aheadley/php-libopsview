@@ -212,6 +212,15 @@ class OpsviewRemote {
             $notify, $auto_remove_comment);
     }
 
+    public function createHost($attributes);
+    public function cloneHost($source_host, $dest_host, $attributes);
+    public function deleteHost($host);
+    public function scheduleDowntime($hostgroup, $start_time, $end_time, $comment);
+    public function disableScheduledDowntime($hostgroup);
+    public function enableNotifications($hostgroup);
+    public function disableNotifications($hostgroup);
+    public function reload();
+
     protected function _login() {
         if (!$this->_connection->getCookieJar()->getCookie($this->base_url,
             'auth_tkt', Zend_Http_CookieJar::COOKIE_OBJECT)) {
