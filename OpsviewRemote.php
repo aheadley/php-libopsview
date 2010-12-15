@@ -27,11 +27,8 @@ class OpsviewRemote {
         $this->base_url = $base_url;
         $this->username = $username;
         $this->password = $password;
-        if ($content_type == self::TYPE_XML or $content_type == self::TYPE_JSON) {
-            $this->content_type = $content_type;
-        } else {
-            $this->content_type = self::TYPE_XML;
-        }
+        $this->content_type = ($content_type == self::TYPE_JSON ?
+            self::TYPE_JSON : self::TYPE_XML);
 
         $this->_connection = new Zend_Http_Client(
             $this->base_url,
@@ -48,7 +45,7 @@ class OpsviewRemote {
         $this->_connection->resetParameters()->
             setUri($this->base_url . self::$URL['status'])->
             setHeaders('Content-Type', $this->content_type);
-        for ($i=0;$i<4;$i++) {
+        for ($i=0; $i<4; $i++) {
             if ((pow(2,$i) & $status_mask) == pow(2,$i)) {
                 $this->_connection->setParameterGet('state', $i);
             }
@@ -71,7 +68,7 @@ class OpsviewRemote {
             setUri($this->base_url . self::$URL['status'])->
             setHeaders('Content-Type', $this->content_type)->
             setParameterGet('host', $host_name);
-        for ($i=0;$i<4;$i++) {
+        for ($i=0; $i<4; $i++) {
             if ((pow(2,$i) & $status_mask) == pow(2,$i)) {
                 $this->_connection->setParameterGet('state', $i);
             }
@@ -96,7 +93,7 @@ class OpsviewRemote {
             setUri($this->base_url . self::$URL['status'])->
             setHeaders('Content-Type', $this->content_type)->
             setParameterGet('hostgroupid', $hostgroup_id);
-        for ($i=0;$i<4;$i++) {
+        for ($i=0; $i<4; $i++) {
             if ((pow(2,$i) & $status_mask) == pow(2,$i)) {
                 $this->_connection->setParameterGet('state', $i);
             }
@@ -224,8 +221,39 @@ XML;
 
         return $this->_postXml(sprintf($xml_template, $this->_array_to_xml($attributes)));
     }
-    public function cloneHost($source_host, $dest_host, $attributes);
-    public function deleteHost($host);
+    public function cloneHost($source_host, $attributes) {
+        $required_attributes = array('name', 'ip');
+$xml_template = <<<'XML'
+<opsview>
+    <host action="create">
+        <clone>
+            <name>%s</name>
+        </clone>
+        %s
+    </host>
+</opsview>
+XML;
+
+        return $this->_postXml(sprintf($xml_template, $source_host,
+            $this->_array_to_xml($attributes)));
+    }
+
+    public function deleteHost($host) {
+$xml_template = <<<'XML'
+<opsview>
+    <host action="delete" by_%s="%s"/>
+</opsview>
+XML;
+
+        if (is_numeric($host)) {
+            $id_type = 'id';
+        } else {
+            $id_type = 'name';
+        }
+
+        return $this->_postXml(sprintf($xml_template, $id_type, $host));
+    }
+
     public function scheduleDowntime($hostgroup, $start_time, $end_time, $comment);
     public function disableScheduledDowntime($hostgroup);
     public function enableNotifications($hostgroup);
