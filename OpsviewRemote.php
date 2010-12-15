@@ -312,5 +312,11 @@ XML;
 
     protected function _postXml($xml_string) {
         $this->login();
+        $this->_connection->resetParameters()->
+            setUri($this->base_url . self::$URL['api'])->
+            setHeaders('Content-Type', self::TYPE_XML)->
+            setRawData(trim($xml_string));
+
+        return $this->_connection->request(Zend_Http_Client::POST);
     }
 }
