@@ -19,7 +19,7 @@ class OpsviewRemote {
     );
 
     protected $_connection;
-    protected $url, $username, $password;
+    protected $base_url, $username, $password, $content_type;
 
     public function  __construct($base_url, $username, $password,
         $content_type=null) {
