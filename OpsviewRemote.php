@@ -403,7 +403,12 @@ XML;
     protected static function _arrayToXml($data) {
         $xml_string = '';
         foreach ($data as $tag => $content) {
-            $xml_string .= "<${tag}>${content}</${tag}>";
+            if (is_array($content)) {
+                $xml_string .= "<${tag}>" . self::_arrayToXml($content) .
+                    "</${tag}>";
+            } else {
+                $xml_string .= "<${tag}>${content}</${tag}>";
+            }
         }
 
         return $xml_string;
