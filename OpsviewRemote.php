@@ -42,17 +42,19 @@ class OpsviewRemote {
 
     public function getStatusAll($status_mask=0, $unhandled=false) {
         $this->_login();
-        $this->_connection->resetParameters()->
-            setUri($this->base_url . self::$URL['status'])->
-            setHeaders('Content-Type', $this->content_type);
+        $get_params = array('state' => array());
         for ($i=0; $i<4; $i++) {
             if ((pow(2,$i) & $status_mask) == pow(2,$i)) {
-                $this->_connection->setParameterGet('state', $i);
+                $get_params['state'][] = $i;
             }
         }
         if ($unhandled) {
-            $this->_connection->setParameterGet('filter', 'unhandled');
+            $get_params['filter'] = 'unhandled';
         }
+        $this->_connection->resetParameters()->
+            setUri($this->base_url . self::$URL['status'] . '?' .
+                $this->_format_request_parameters($get_params))->
+            setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
         if ($response->getStatus() == 200) {
@@ -64,18 +66,19 @@ class OpsviewRemote {
 
     public function getStatusHost($host_name, $status_mask=0, $unhandled=false) {
         $this->_login();
-        $this->_connection->resetParameters()->
-            setUri($this->base_url . self::$URL['status'])->
-            setHeaders('Content-Type', $this->content_type)->
-            setParameterGet('host', $host_name);
+        $get_params = array('state' => array(), 'host' => $host_name);
         for ($i=0; $i<4; $i++) {
             if ((pow(2,$i) & $status_mask) == pow(2,$i)) {
-                $this->_connection->setParameterGet('state', $i);
+                $get_params['state'][] = $i;
             }
         }
         if ($unhandled) {
-            $this->_connection->setParameterGet('filter', 'unhandled');
+            $get_params['filter'] = 'unhandled';
         }
+        $this->_connection->resetParameters()->
+            setUri($this->base_url . self::$URL['status'] . '?' .
+                $this->_format_request_parameters($get_params))->
+            setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
         if ($response->getStatus() == 200) {
@@ -89,18 +92,19 @@ class OpsviewRemote {
         $unhandled=false) {
 
         $this->_login();
-        $this->_connection->resetParameters()->
-            setUri($this->base_url . self::$URL['status'])->
-            setHeaders('Content-Type', $this->content_type)->
-            setParameterGet('hostgroupid', $hostgroup_id);
+        $get_params = array('state' => array(), 'hostgroupid' => $hostgroup_id);
         for ($i=0; $i<4; $i++) {
             if ((pow(2,$i) & $status_mask) == pow(2,$i)) {
-                $this->_connection->setParameterGet('state', $i);
+                $get_params['state'][] = $i;
             }
         }
         if ($unhandled) {
-            $this->_connection->setParameterGet('filter', 'unhandled');
+            $get_params['filter'] = 'unhandled';
         }
+        $this->_connection->resetParameters()->
+            setUri($this->base_url . self::$URL['status'] . '?' .
+                $this->_format_request_parameters($get_params))->
+            setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
         if ($response->getStatus() == 200) {
@@ -133,7 +137,7 @@ class OpsviewRemote {
         }
     }
 
-    public function getStatusHostgroup($hostgroup_id) {
+    public function getStatusHostgroup($hostgroup_id='') {
         $this->_login();
         $this->_connection->resetParameters()->
             setUri($this->base_url . self::$URL['status_hostgroup'] .
@@ -340,7 +344,7 @@ XML;
         $this->_login();
         $this->_connection->resetParameters()->
             setUri($this->base_url . self::$URL['acknowledge'])->
-            setRawData($this->_format_post_data($targets, array(
+            setRawData($this->_format_ack_post_parameters($targets, array(
                 'from'  => $this->base_url,
                 'submit'    => 'Submit',
                 'comment'   => $comment,
@@ -352,37 +356,40 @@ XML;
         return $response->getStatus() == 200;
     }
 
-    protected function _format_post_data($targets, $extra=null) {
-        $host_selection = array();
-        $service_selection = array();
-        $extra_data = array();
-        $post_data = '';
+    protected function _format_request_parameters($parameters) {
+        $params_parsed = array();
+        foreach ($parameters as $parameter => $value) {
+            if (is_array($value)) {
+                foreach ($value as $subvalue) {
+                    $params_parsed[] = urlencode($parameter) . '=' .
+                        urlencode($subvalue);
+                }
+            } else {
+                $params_parsed[] = urlencode($parameter) . '=' .
+                    urlencode($value);
+            }
+        }
+
+        return implode('&', $params_parsed);
+    }
+
+    protected function _format_ack_post_parameters($targets, $extra=null) {
+        $params_prepped = (is_array($extra) ? $extra : array());
+        $params_prepped['host_selection'] = array();
+        $params_prepped['service_selection'] = array();
+
         foreach ($targets as $host => $services) {
             foreach ($services as $service) {
                 if (!$service) {
-                    $host_selection[] = 'host_selection=' . urlencode($host);
+                    $params_prepped['host_selection'][] = $host;
                 } else {
-                    $service_selection[] = 'service_selection=' .
-                        urlencode($host . ';' . $service);
+                    $params_prepped['service_selection'][] = $host . ';' .
+                        $service;
                 }
             }
         }
-        $host_selection = implode('&', $host_selection);
-        $service_selection = implode('&', $service_selection);
 
-        if (is_array($extra)) {
-            foreach ($extra as $key => $value) {
-                $extra_data[] = urlencode($key) . '=' . urlencode($value);
-            }
-            $extra_data = implode('&', $extra_data);
-        }
-
-        return trim(trim(implode('&', array(
-            $host_selection,
-            $service_selection,
-            $extra_data,
-        )), '&'));
-
+        return $this->_format_request_parameters($params_prepped);
     }
 
     protected function _array_to_xml($data) {
@@ -395,12 +402,17 @@ XML;
     }
 
     protected function _postXml($xml_string) {
-        $this->login();
+        $this->_login();
         $this->_connection->resetParameters()->
             setUri($this->base_url . self::$URL['api'])->
             setHeaders('Content-Type', self::TYPE_XML)->
             setRawData(trim($xml_string));
 
-        return $this->_connection->request(Zend_Http_Client::POST);
+        $response = $this->_connection->request(Zend_Http_Client::POST);
+        if ($response->getStatus() == 200) {
+            return trim($response->getBody());
+        } else {
+            return null;
+        }
     }
 }
