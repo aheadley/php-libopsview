@@ -5,7 +5,9 @@ $remote = new OpsviewRemote(
     //base url of your opsview installation
     'https://your.opsview-server.com/',
     'opsview_user',
-    'opsview_pass');
+    'opsview_pass',
+    //optional, can choose xml or json, default is xml. detemines whats returned from status requests (only)
+    OpsviewRemote::TYPE_XML);
 
 //echo the status of everything that
 echo $remote->getStatusAll(
