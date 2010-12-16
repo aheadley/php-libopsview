@@ -53,7 +53,7 @@ class OpsviewRemote {
         }
         $this->_connection->resetParameters()->
             setUri($this->base_url . self::$URL['status'] . '?' .
-                $this->_format_request_parameters($get_params))->
+                self::_formatRequestParameters($get_params))->
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
@@ -77,7 +77,7 @@ class OpsviewRemote {
         }
         $this->_connection->resetParameters()->
             setUri($this->base_url . self::$URL['status'] . '?' .
-                $this->_format_request_parameters($get_params))->
+                self::_formatRequestParameters($get_params))->
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
@@ -103,7 +103,7 @@ class OpsviewRemote {
         }
         $this->_connection->resetParameters()->
             setUri($this->base_url . self::$URL['status'] . '?' .
-                $this->_format_request_parameters($get_params))->
+                self::_formatRequestParameters($get_params))->
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
@@ -202,14 +202,14 @@ class OpsviewRemote {
     public function acknowledgeHost($host_name, $comment, $notify=true,
         $auto_remove_comment=true) {
 
-        $this->_acknowledge(array($host_name => array(null)), $comment, $notify,
+        return $this->_acknowledge(array($host_name => array(null)), $comment, $notify,
             $auto_remove_comment);
     }
 
     public function acknowledgeService($service_name, $host_name, $comment,
         $notify=true, $auto_remove_comment=true) {
 
-        $this->_acknowledge(array($host_name => array($service_name)), $comment,
+        return $this->_acknowledge(array($host_name => array($service_name)), $comment,
             $notify, $auto_remove_comment);
     }
 
@@ -223,7 +223,12 @@ $xml_template = <<<'XML'
 </opsview>
 XML;
 
-        return $this->_postXml(sprintf($xml_template, $this->_array_to_xml($attributes)));
+        if (!self::_checkRequiredAttributes($required_attributes, $attributes)) {
+            throw RuntimeException('Missing required host attribute');
+        } else {
+            return $this->_postXml(sprintf($xml_template,
+                $this->_arrayToXml($attributes)));
+        }
     }
     public function cloneHost($source_host, $attributes) {
         $required_attributes = array('name', 'ip');
@@ -237,9 +242,12 @@ $xml_template = <<<'XML'
     </host>
 </opsview>
 XML;
-
-        return $this->_postXml(sprintf($xml_template, $source_host,
-            $this->_array_to_xml($attributes)));
+        if (!self::_checkRequiredAttributes($required_attributes, $attributes)) {
+            throw RuntimeException('Missing required host attribute');
+        } else {
+            return $this->_postXml(sprintf($xml_template, $source_host,
+                $this->_arrayToXml($attributes)));
+        }
     }
 
     public function deleteHost($host) {
@@ -344,7 +352,7 @@ XML;
         $this->_login();
         $this->_connection->resetParameters()->
             setUri($this->base_url . self::$URL['acknowledge'])->
-            setRawData($this->_format_ack_post_parameters($targets, array(
+            setRawData(self::_formatAckPostParameters($targets, array(
                 'from'  => $this->base_url,
                 'submit'    => 'Submit',
                 'comment'   => $comment,
@@ -356,7 +364,7 @@ XML;
         return $response->getStatus() == 200;
     }
 
-    protected function _format_request_parameters($parameters) {
+    protected static function _formatRequestParameters($parameters) {
         $params_parsed = array();
         foreach ($parameters as $parameter => $value) {
             if (is_array($value)) {
@@ -373,7 +381,7 @@ XML;
         return implode('&', $params_parsed);
     }
 
-    protected function _format_ack_post_parameters($targets, $extra=null) {
+    protected static function _formatAckPostParameters($targets, $extra=null) {
         $params_prepped = (is_array($extra) ? $extra : array());
         $params_prepped['host_selection'] = array();
         $params_prepped['service_selection'] = array();
@@ -389,16 +397,29 @@ XML;
             }
         }
 
-        return $this->_format_request_parameters($params_prepped);
+        return self::_formatRequestParameters($params_prepped);
     }
 
-    protected function _array_to_xml($data) {
+    protected static function _arrayToXml($data) {
         $xml_string = '';
         foreach ($data as $tag => $content) {
             $xml_string .= "<${tag}>${content}</${tag}>";
         }
 
         return $xml_string;
+    }
+
+    protected static function _checkRequiredAttributes($required_attributes,
+        $attributes) {
+
+        foreach ($required_attributes as $attribute) {
+            if (!array_key_exists($attribute, $attributes) ||
+                is_null($attributes[$attribute])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected function _postXml($xml_string) {
