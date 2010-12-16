@@ -1,5 +1,5 @@
 <?php
-
+require_once 'Zend/Http/Client.php';
 class OpsviewRemote {
     //4-bit mask
     const STATE_OK = 1;

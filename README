@@ -1,3 +1,4 @@
+Requires ZendFramework be installed and on the PHP include path
 Usage:
 
 $remote = new OpsviewRemote(
