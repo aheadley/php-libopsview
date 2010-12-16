@@ -245,20 +245,76 @@ $xml_template = <<<'XML'
 </opsview>
 XML;
 
-        if (is_numeric($host)) {
-            $id_type = 'id';
-        } else {
-            $id_type = 'name';
-        }
-
-        return $this->_postXml(sprintf($xml_template, $id_type, $host));
+        return $this->_postXml(sprintf($xml_template,
+            (is_numeric($host) ? 'id' : 'name'), $host));
     }
 
-    public function scheduleDowntime($hostgroup, $start_time, $end_time, $comment);
-    public function disableScheduledDowntime($hostgroup);
-    public function enableNotifications($hostgroup);
-    public function disableNotifications($hostgroup);
-    public function reload();
+    public function scheduleDowntime($hostgroup, $start_time, $end_time, $comment) {
+$xml_template = <<<'XML'
+<opsview>
+    <hostgroup action="change" by_%s="%s">
+        <downtime
+            start="%s"
+            end="%s"
+            comment="%s">
+            enable
+        </downtime>
+    </hostgroup>
+</opsview>
+XML;
+
+        return $this->_postXml(sprintf($xml_template,
+            (is_numeric($hostgroup) ? 'id' : 'name'), $hostgroup, $start_time,
+            $end_time, $comment));
+    }
+
+    public function disableScheduledDowntime($hostgroup) {
+$xml_template = <<<'XML'
+<opsview>
+    <hostgroup action="change" by_%s="%s">
+        <downtime>disable</downtime>
+    </hostgroup>
+</opsview>
+XML;
+
+        return $this->_postXml(sprintf($xml_template,
+            (is_numeric($hostgroup) ? 'id' : 'name'), $hostgroup));
+    }
+
+    public function enableNotifications($hostgroup) {
+$xml_template = <<<'XML'
+<opsview>
+    <hostgroup action="change" by_%s="%s">
+        <notifications>enable</notifications>
+    </hostgroup>
+</opsview>
+XML;
+
+        return $this->_postXml(sprintf($xml_template,
+            (is_numeric($hostgroup) ? 'id' : 'name'), $hostgroup));
+    }
+
+    public function disableNotifications($hostgroup) {
+$xml_template = <<<'XML'
+<opsview>
+    <hostgroup action="change" by_%s="%s">
+        <notifications>disable</notifications>
+    </hostgroup>
+</opsview>
+XML;
+
+        return $this->_postXml(sprintf($xml_template,
+            (is_numeric($hostgroup) ? 'id' : 'name'), $hostgroup));
+    }
+
+    public function reload() {
+$xml_template = <<<'XML'
+<opsview>
+    <system action="reload"/>
+</opsview>
+XML;
+        return $this->_postXml($xml_template);
+    }
 
     protected function _login() {
         if (!$this->_connection->getCookieJar()->getCookie($this->base_url,
