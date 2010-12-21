@@ -19,6 +19,16 @@ class OpsviewRemote {
     protected $_connection;
     protected $base_url, $username, $password, $content_type;
 
+    /**
+     *
+     * @param string $base_url url to base opsview location, i.e.
+     *                          https://www.example.com/opsview/
+     * @param string $username username to login to opsview
+     * @param string $password password for that user
+     * @param string $content_type content type to get back from opsview, only
+     *                              applies to status requests, api requests are
+     *                              always in xml
+     */
     public function  __construct($base_url, $username, $password,
         $content_type=null) {
 
@@ -38,6 +48,13 @@ class OpsviewRemote {
         $this->_connection->setCookieJar();
     }
 
+    /**
+     *
+     * @param int $status_mask mask results to certain status, multiple statuses
+     *                          can be combined with bitwise OR ("|")
+     * @param bool $unhandled limit results to unhandled problems only
+     * @return bool see _acknowledge()
+     */
     public function getStatusAll($status_mask=0, $unhandled=false) {
         $this->_login();
         $get_params = array('state' => array());
@@ -326,6 +343,12 @@ XML;
         return $this->_postXml($xml_template);
     }
 
+    /**
+     * Logs into opsview if there isn't already an opsview auth cookie in the
+     * cookiejar
+     *
+     * @return OpsviewRemote
+     */
     protected function _login() {
         if (!$this->_connection->getCookieJar()->getCookie($this->base_url,
             'auth_tkt', Zend_Http_CookieJar::COOKIE_OBJECT)) {
@@ -344,6 +367,16 @@ XML;
         return $this;
     }
 
+    /**
+     *
+     * @param array $targets hosts and services to ack, arranged as:
+     *                        array(host1 => array( service1, service2, null))
+     *                        null means to acknowledge the host itself
+     * @param string $comment acknowledgement comment
+     * @param bool $notify send out notification of acknowledgement
+     * @param bool $auto_remove_comment remove the comment after service recovers
+     * @return bool response status, true if status is 200 (OK), false otherwise
+     */
     protected function _acknowledge($targets, $comment, $notify,
         $auto_remove_comment) {
 
@@ -362,6 +395,11 @@ XML;
         return $response->getStatus() == 200;
     }
 
+    /**
+     *
+     * @param string $xml_string xml to send to opsview's api
+     * @return string opsview's xml response or null if there was an error
+     */
     protected function _postXml($xml_string) {
         $this->_login();
         $this->_connection->resetParameters()->
@@ -377,6 +415,11 @@ XML;
         }
     }
 
+    /**
+     *
+     * @param array $parameters request params as var name => value
+     * @return string the formatted request parameters, suitable for get or post
+     */
     protected static function _formatRequestParameters($parameters) {
         $params_parsed = array();
         foreach ($parameters as $parameter => $value) {
@@ -394,6 +437,12 @@ XML;
         return implode('&', $params_parsed);
     }
 
+    /**
+     *
+     * @param array $targets array of ack targets
+     * @param array $extra array of any additional post data
+     * @return string the formatted post content
+     */
     protected static function _formatAckPostParameters($targets, $extra=null) {
         $params_prepped = (is_array($extra) ? $extra : array());
         $params_prepped['host_selection'] = array();
@@ -413,6 +462,12 @@ XML;
         return self::_formatRequestParameters($params_prepped);
     }
 
+    /**
+     *
+     * @param array $data array of attribute tags => values, nesting allowed
+     * @return string the resultant xml
+     */
+
     protected static function _arrayToXml($data) {
         $xml_string = '';
         foreach ($data as $tag => $content) {
@@ -426,6 +481,13 @@ XML;
 
         return $xml_string;
     }
+
+    /**
+     * @param array $required_attributes list of required attributes
+     * @param array $attributes          list of attributes passed
+     * @return bool true if every attribute in $required_attributes is found
+     *                  in $attributes
+     */
 
     protected static function _checkRequiredAttributes($required_attributes,
         $attributes) {
