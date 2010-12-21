@@ -10,13 +10,11 @@ class OpsviewRemote {
     const TYPE_XML = 'text/xml';
     const TYPE_JSON = 'application/json';
 
-    protected static $URL = array(
-        'acknowledge'       =>  'status/service/acknowledge',
-        'status'            =>  'api/status/service',
-        'status_hostgroup'  =>  'api/status/hostgroup',
-        'login'             =>  'login',
-        'api'               =>  'api',
-    );
+    const URL_ACK               = 'status/service/acknowledge';
+    const URL_STATUS            = 'api/status/service';
+    const URL_STATUS_HOSTGROUP  = 'api/status/hostgroup';
+    const URL_LOGIN             = 'login';
+    const URL_API               = 'api';
 
     protected $_connection;
     protected $base_url, $username, $password, $content_type;
@@ -34,7 +32,7 @@ class OpsviewRemote {
             $this->base_url,
             array(
                 'strictredirects'   => true,
-                'timeout'           => 60,
+                'timeout'           => (int)ini_get('default_socket_timeout'),
                 'keepalive'         => true,
             ));
         $this->_connection->setCookieJar();
@@ -52,7 +50,7 @@ class OpsviewRemote {
             $get_params['filter'] = 'unhandled';
         }
         $this->_connection->resetParameters()->
-            setUri($this->base_url . self::$URL['status'] . '?' .
+            setUri($this->base_url . self::URL_STATUS . '?' .
                 self::_formatRequestParameters($get_params))->
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
@@ -76,7 +74,7 @@ class OpsviewRemote {
             $get_params['filter'] = 'unhandled';
         }
         $this->_connection->resetParameters()->
-            setUri($this->base_url . self::$URL['status'] . '?' .
+            setUri($this->base_url . self::URL_STATUS . '?' .
                 self::_formatRequestParameters($get_params))->
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
@@ -102,7 +100,7 @@ class OpsviewRemote {
             $get_params['filter'] = 'unhandled';
         }
         $this->_connection->resetParameters()->
-            setUri($this->base_url . self::$URL['status'] . '?' .
+            setUri($this->base_url . self::URL_STATUS . '?' .
                 self::_formatRequestParameters($get_params))->
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
@@ -140,7 +138,7 @@ class OpsviewRemote {
     public function getStatusHostgroup($hostgroup_id='') {
         $this->_login();
         $this->_connection->resetParameters()->
-            setUri($this->base_url . self::$URL['status_hostgroup'] .
+            setUri($this->base_url . self::URL_STATUS_HOSTGROUP .
                 '/' . $hostgroup_id)->
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
@@ -332,7 +330,7 @@ XML;
         if (!$this->_connection->getCookieJar()->getCookie($this->base_url,
             'auth_tkt', Zend_Http_CookieJar::COOKIE_OBJECT)) {
 
-            $this->_connection->setUri($this->base_url . self::$URL['login']);
+            $this->_connection->setUri($this->base_url . self::URL_LOGIN);
             $this->_connection->setParameterPost(array(
                 'login_username'    => $this->username,
                 'login_password'    => $this->password,
@@ -351,7 +349,7 @@ XML;
 
         $this->_login();
         $this->_connection->resetParameters()->
-            setUri($this->base_url . self::$URL['acknowledge'])->
+            setUri($this->base_url . self::URL_ACK)->
             setRawData(self::_formatAckPostParameters($targets, array(
                 'from'  => $this->base_url,
                 'submit'    => 'Submit',
@@ -362,6 +360,21 @@ XML;
 
         $response = $this->_connection->request(Zend_Http_Client::POST);
         return $response->getStatus() == 200;
+    }
+
+    protected function _postXml($xml_string) {
+        $this->_login();
+        $this->_connection->resetParameters()->
+            setUri($this->base_url . self::URL_API)->
+            setHeaders('Content-Type', self::TYPE_XML)->
+            setRawData(trim($xml_string));
+
+        $response = $this->_connection->request(Zend_Http_Client::POST);
+        if ($response->getStatus() == 200) {
+            return trim($response->getBody());
+        } else {
+            return null;
+        }
     }
 
     protected static function _formatRequestParameters($parameters) {
@@ -425,20 +438,5 @@ XML;
         }
 
         return true;
-    }
-
-    protected function _postXml($xml_string) {
-        $this->_login();
-        $this->_connection->resetParameters()->
-            setUri($this->base_url . self::$URL['api'])->
-            setHeaders('Content-Type', self::TYPE_XML)->
-            setRawData(trim($xml_string));
-
-        $response = $this->_connection->request(Zend_Http_Client::POST);
-        if ($response->getStatus() == 200) {
-            return trim($response->getBody());
-        } else {
-            return null;
-        }
     }
 }
