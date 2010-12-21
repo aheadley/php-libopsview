@@ -72,11 +72,7 @@ class OpsviewRemote {
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
-        if ($response->getStatus() == 200) {
-            return trim($response->getBody());
-        } else {
-            return null;
-        }
+        return ($response->getStatus() == 200 ? trim($response->getBody()) : null);
     }
 
     public function getStatusHost($host_name, $status_mask=0, $unhandled=false) {
@@ -96,11 +92,7 @@ class OpsviewRemote {
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
-        if ($response->getStatus() == 200) {
-            return trim($response->getBody());
-        } else {
-            return null;
-        }
+        return ($response->getStatus() == 200 ? trim($response->getBody()) : null);
     }
 
     public function getStatusHosts($hostgroup_id, $status_mask=0,
@@ -122,11 +114,7 @@ class OpsviewRemote {
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
-        if ($response->getStatus() == 200) {
-            return trim($response->getBody());
-        } else {
-            return null;
-        }
+        return ($response->getStatus() == 200 ? trim($response->getBody()) : null);
     }
 
     public function getStatusService($host_name, $service_name) {
@@ -160,11 +148,7 @@ class OpsviewRemote {
             setHeaders('Content-Type', $this->content_type);
         $response = $this->_connection->request(Zend_Http_Client::GET);
 
-        if ($response->getStatus() == 200) {
-            return trim($response->getBody());
-        } else {
-            return null;
-        }
+        return ($response->getStatus() == 200 ? trim($response->getBody()) : null);
     }
 
     public function acknowledgeAll($comment, $notify=true,
@@ -362,6 +346,11 @@ XML;
             ));
 
             $this->_connection->request(Zend_Http_Client::POST);
+
+            if (!$this->_connection->getCookieJar()->getCookie($this->base_url,
+            'auth_tkt', Zend_Http_CookieJar::COOKIE_OBJECT)) {
+                throw new RuntimeException('Login failed');
+            }
         }
 
         return $this;
@@ -406,13 +395,9 @@ XML;
             setUri($this->base_url . self::URL_API)->
             setHeaders('Content-Type', self::TYPE_XML)->
             setRawData(trim($xml_string));
-
         $response = $this->_connection->request(Zend_Http_Client::POST);
-        if ($response->getStatus() == 200) {
-            return trim($response->getBody());
-        } else {
-            return null;
-        }
+
+        return ($response->getStatus() == 200 ? trim($response->getBody()) : null);
     }
 
     /**
