@@ -25,6 +25,10 @@ class Opsview_Node_Server
     $this->getRemote()->acknowledgeAll( $comment, $notify, $autoRemoveComment );
   }
 
+  public function getName() {
+    return $this->_url;
+  }
+
   public function getRemote() {
     return $this->_remote;
   }

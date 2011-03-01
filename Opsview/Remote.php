@@ -19,6 +19,7 @@ class Opsview_Remote {
   private $_baseUrl     = null;
   private $_username    = null;
   private $_password    = null;
+  private $_contentType = null;
 
   /**
    *
@@ -26,21 +27,20 @@ class Opsview_Remote {
    *                          https://www.example.com/opsview/
    * @param string $username username to login to opsview
    * @param string $password password for that user
-   * @param string $content_type content type to get back from opsview, only
+   * @param string $contentType content type to get back from opsview, only
    *                              applies to status requests, api requests are
    *                              always in xml
    */
   public function __construct( $baseUrl, $username, $password,
-                               $content_type=null ) {
+                                $contentType = null ) {
 
-    $this->baseUrl = $baseUrl;
-    $this->username = $username;
-    $this->password = $password;
-    $this->contentType = ($content_type == self::TYPE_JSON ?
-        self::TYPE_JSON : self::TYPE_XML);
-
+    $this->_baseUrl     = $baseUrl;
+    $this->_username    = $username;
+    $this->_password    = $password;
+    $this->_contentType = $contentType == self::TYPE_JSON ?
+                            self::TYPE_JSON : self::TYPE_XML;
     $this->_connection = new Zend_Http_Client(
-        $this->baseUrl,
+        $this->_baseUrl,
         array(
           'strictredirects' => true,
           'timeout' => (int)ini_get( 'default_socket_timeout' ),
@@ -51,16 +51,16 @@ class Opsview_Remote {
 
   /**
    *
-   * @param int $status_mask mask results to certain status, multiple statuses
+   * @param int $statusMask mask results to certain status, multiple statuses
    *                          can be combined with bitwise OR ("|")
    * @param bool $unhandled limit results to unhandled problems only
    * @return bool see _acknowledge()
    */
-  public function getStatusAll( $status_mask=0, $unhandled=false ) {
+  public function getStatusAll( $statusMask=0, $unhandled=false ) {
     $this->_login();
-    $get_params = array( 'state' => array( ) );
+    $get_params = array( 'state' => array() );
     for( $i = 0; $i < 4; $i++ ) {
-      if( (pow( 2, $i ) & $status_mask) == pow( 2, $i ) ) {
+      if( (pow( 2, $i ) & $statusMask ) == pow( 2, $i ) ) {
         $get_params['state'][] = $i;
       }
     }
@@ -68,19 +68,19 @@ class Opsview_Remote {
       $get_params['filter'] = 'unhandled';
     }
     $this->_connection->resetParameters()->
-      setUri( $this->baseUrl . self::URL_STATUS . '?' .
+      setUri( $this->_baseUrl . self::URL_STATUS . '?' .
         self::_formatRequestParameters( $get_params ) )->
-      setHeaders( 'Content-Type', $this->contentType );
+      setHeaders( 'Content-Type', $this->_contentType );
     $response = $this->_connection->request( Zend_Http_Client::GET );
 
-    return ($response->getStatus() == 200 ? trim( $response->getBody() ) : null);
+    return $response->getStatus() == 200 ? trim( $response->getBody() ) : null;
   }
 
-  public function getStatusHost( $host_name, $status_mask=0, $unhandled=false ) {
+  public function getStatusHost( $host_name, $statusMask=0, $unhandled=false ) {
     $this->_login();
     $get_params = array( 'state' => array( ), 'host' => $host_name );
     for( $i = 0; $i < 4; $i++ ) {
-      if( (pow( 2, $i ) & $status_mask) == pow( 2, $i ) ) {
+      if( (pow( 2, $i ) & $statusMask) == pow( 2, $i ) ) {
         $get_params['state'][] = $i;
       }
     }
@@ -88,21 +88,20 @@ class Opsview_Remote {
       $get_params['filter'] = 'unhandled';
     }
     $this->_connection->resetParameters()->
-      setUri( $this->baseUrl . self::URL_STATUS . '?' .
+      setUri( $this->_baseUrl . self::URL_STATUS . '?' .
         self::_formatRequestParameters( $get_params ) )->
-      setHeaders( 'Content-Type', $this->contentType );
+      setHeaders( 'Content-Type', $this->_contentType );
     $response = $this->_connection->request( Zend_Http_Client::GET );
 
     return ($response->getStatus() == 200 ? trim( $response->getBody() ) : null);
   }
 
-  public function getStatusHosts( $hostgroup_id, $status_mask=0,
-                                  $unhandled=false ) {
+  public function getStatusHosts( $hostgroup, $statusMask=0, $unhandled = false ) {
 
     $this->_login();
-    $get_params = array( 'state' => array( ), 'hostgroupid' => $hostgroup_id );
+    $get_params = array( 'state' => array( ), 'hostgroupid' => $hostgroup );
     for( $i = 0; $i < 4; $i++ ) {
-      if( (pow( 2, $i ) & $status_mask) == pow( 2, $i ) ) {
+      if( (pow( 2, $i ) & $statusMask) == pow( 2, $i ) ) {
         $get_params['state'][] = $i;
       }
     }
@@ -110,59 +109,55 @@ class Opsview_Remote {
       $get_params['filter'] = 'unhandled';
     }
     $this->_connection->resetParameters()->
-      setUri( $this->baseUrl . self::URL_STATUS . '?' .
+      setUri( $this->_baseUrl . self::URL_STATUS . '?' .
         self::_formatRequestParameters( $get_params ) )->
-      setHeaders( 'Content-Type', $this->contentType );
+      setHeaders( 'Content-Type', $this->_contentType );
     $response = $this->_connection->request( Zend_Http_Client::GET );
 
     return ($response->getStatus() == 200 ? trim( $response->getBody() ) : null);
   }
 
-  public function getStatusService( $host_name, $service_name ) {
-    $host_status = $this->getStatusHost( $host_name );
-    switch( $this->contentType ) {
+  public function getStatusService( $host, $service ) {
+    $hostStatus = $this->getStatusHost( $host );
+    switch( $this->_contentType ) {
       case self::TYPE_JSON:
-        foreach( $host_status['data']['list']['services'] as $service ) {
-          if( strtolower( $service['name'] ) == strtolower( $service_name ) ) {
-            return json_encode( $service );
+        foreach( $hostStatus['data']['list']['services'] as $serviceNode ) {
+          if( strtolower( $serviceNode['name'] ) == strtolower( $service ) ) {
+            return Zend_Json::encode( $serviceNode );
           }
         }
         break;
       case self::TYPE_XML:
       default:
-        $host_status = simplexml_load_string( $host_status );
-        foreach( $host_status->data->list->services as $service ) {
-          if( strtolower( (string)$service->attributes()->name ) ==
-            strtolower( $service_name ) ) {
-
-            return $service->asXML();
+        foreach( simplexml_load_string( $hostStatus )->data->list->services as $serviceNode ) {
+          if( strtolower( (string)$serviceNode->attributes()->name ) ==
+            strtolower( $service ) ) {
+            return $serviceNode->asXML();
           }
         }
     }
   }
 
-  public function getStatusHostgroup( $hostgroup_id='' ) {
+  public function getStatusHostgroup( $hostgroup = null ) {
     $this->_login();
     $this->_connection->resetParameters()->
-      setHeaders( 'Content-Type', $this->contentType );
-    if( is_numeric( $hostgroup_id ) || empty( $hostgroup_id ) ) {
-      $this->_connection->setUri( $this->baseUrl . self::URL_STATUS_HOSTGROUP . '/' . $hostgroup_id );
+      setHeaders( 'Content-Type', $this->_contentType );
+    if( is_numeric( $hostgroup ) || empty( $hostgroup ) ) {
+      $this->_connection->setUri( $this->_baseUrl . self::URL_STATUS_HOSTGROUP . '/' . $hostgroup );
     } else {
-      $this->_connection->setUri( $this->baseUrl . self::URL_STATUS_HOSTGROUP )->
-      setParameterGet( 'by_name', $hostgroup_id );
+      $this->_connection->setUri( $this->_baseUrl . self::URL_STATUS_HOSTGROUP )->
+      setParameterGet( 'by_name', $hostgroup );
     }
-    $response = $this->_connection->request( Zend_Http_Client::GET );
-
-    return ($response->getStatus() == 200 ? trim( $response->getBody() ) : null);
+    return $this->_doRequest( Zend_Http_Client::GET );
   }
 
-  public function acknowledgeAll( $comment, $notify=true,
-                                  $auto_remove_comment=true ) {
+  public function acknowledgeAll( $comment, $notify = true,
+                                  $autoRemoveComment = true ) {
 
     $status = $this->getStatusAll(
         self::STATE_WARNING | self::STATE_CRITICAL, true );
     $targets = array( );
-    switch( $this->contentType ) {
+    switch( $this->_contentType ) {
       case self::TYPE_JSON:
         $status = json_decode( $status, true );
         $hosts = $status_decoded['data']['list'];
@@ -199,45 +194,39 @@ class Opsview_Remote {
           }
         }
     }
-
-    return $this->_acknowledge( $targets, $comment, $notify, $auto_remove_comment );
+    return $this->_acknowledge( $targets, $comment, $notify, $autoRemoveComment );
   }
 
-  public function acknowledgeHost( $host_name, $comment, $notify=true,
-                                   $auto_remove_comment=true ) {
+  public function acknowledgeHost( $host, $comment, $notify = true,
+                                    $autoRemoveComment = true ) {
 
-    return $this->_acknowledge( array( $host_name => array( null ) ), $comment, $notify,
-      $auto_remove_comment );
+    return $this->_acknowledge( array( $host => array( null ) ), $comment, $notify,
+      $autoRemoveComment );
   }
 
-  public function acknowledgeService( $service_name, $host_name, $comment,
-                                      $notify=true, $auto_remove_comment=true ) {
+  public function acknowledgeService( $service, $host, $comment,
+                                        $notify = true, $autoRemoveComment = true ) {
 
-    return $this->_acknowledge( array( $host_name => array( $service_name ) ), $comment,
-      $notify, $auto_remove_comment );
+    return $this->_acknowledge( array( $host => array( $service ) ), $comment,
+      $notify, $autoRemoveComment );
   }
 
   public function createHost( $attributes ) {
-    $required_attributes = array( 'name', 'ip' );
-    $xml_template = <<<'XML'
+    $requiredAttributes = array( 'name', 'ip' );
+    $xmlTemplate = <<<'XML'
 <opsview>
     <host action="create">
         %s
     </host>
 </opsview>
 XML;
-
-    if( !self::_checkRequiredAttributes( $required_attributes, $attributes ) ) {
-      throw RuntimeException( 'Missing required host attribute' );
-    } else {
-      return $this->_postXml( sprintf( $xml_template,
-          $this->_arrayToXml( $attributes ) ) );
-    }
+    self::_checkRequiredAttributes( $requiredAttributes, $attributes );
+    return $this->_postXml( sprintf( $xmlTemplate, self::_arrayToXml( $attributes ) ) );
   }
 
-  public function cloneHost( $source_host, $attributes ) {
-    $required_attributes = array( 'name', 'ip' );
-    $xml_template = <<<'XML'
+  public function cloneHost( $sourceHost, $attributes ) {
+    $requiredAttributes = array( 'name', 'ip' );
+    $xmlTemplate = <<<'XML'
 <opsview>
     <host action="create">
         <clone>
@@ -247,33 +236,29 @@ XML;
     </host>
 </opsview>
 XML;
-    if( !self::_checkRequiredAttributes( $required_attributes, $attributes ) ) {
-      throw RuntimeException( 'Missing required host attribute' );
-    } else {
-      return $this->_postXml( sprintf( $xml_template, $source_host,
-          $this->_arrayToXml( $attributes ) ) );
-    }
+    self::_checkRequiredAttributes( $requiredAttributes, $attributes );
+    return $this->_postXml( sprintf( $xmlTemplate, $sourceHost,
+        self::_arrayToXml( $attributes ) ) );
   }
 
   public function deleteHost( $host ) {
-    $xml_template = <<<'XML'
+    $xmlTemplate = <<<'XML'
 <opsview>
     <host action="delete" by_%s="%s"/>
 </opsview>
 XML;
-
-    return $this->_postXml( sprintf( $xml_template,
+    return $this->_postXml( sprintf( $xmlTemplate,
         (is_numeric( $host ) ? 'id' : 'name' ), $host ) );
   }
 
-  public function scheduleDowntime( $hostgroup, $start_time, $end_time, $comment ) {
-    if( is_null( $start_time ) ) {
-      $start_time = self::_getFormattedTime();
-      if( is_null( $end_time ) ) {
-        $end_time = self::_getFormattedTime( time() + 3600 );
+  public function scheduleDowntime( $hostgroup, $start, $end, $comment ) {
+    if( is_null( $start ) ) {
+      $start = self::_getFormattedTime();
+      if( is_null( $end ) ) {
+        $end = self::_getFormattedTime( time() + 3600 );
       }
     }
-    $xml_template = <<<'XML'
+    $xmlTemplate = <<<'XML'
 <opsview>
     <hostgroup action="change" by_%s="%s">
         <downtime
@@ -285,58 +270,54 @@ XML;
     </hostgroup>
 </opsview>
 XML;
-
-    return $this->_postXml( sprintf( $xml_template,
-        (is_numeric( $hostgroup ) ? 'id' : 'name' ), $hostgroup, $start_time,
-        $end_time, $comment ) );
+    return $this->_postXml( sprintf( $xmlTemplate,
+        is_numeric( $hostgroup ) ? 'id' : 'name', $hostgroup, $start,
+        $end, $comment ) );
   }
 
   public function disableScheduledDowntime( $hostgroup ) {
-    $xml_template = <<<'XML'
+    $xmlTemplate = <<<'XML'
 <opsview>
     <hostgroup action="change" by_%s="%s">
         <downtime>disable</downtime>
     </hostgroup>
 </opsview>
 XML;
-
-    return $this->_postXml( sprintf( $xml_template,
-        (is_numeric( $hostgroup ) ? 'id' : 'name' ), $hostgroup ) );
+    return $this->_postXml( sprintf( $xmlTemplate,
+        is_numeric( $hostgroup ) ? 'id' : 'name', $hostgroup ) );
   }
 
   public function enableNotifications( $hostgroup ) {
-    $xml_template = <<<'XML'
+    $xmlTemplate = <<<'XML'
 <opsview>
     <hostgroup action="change" by_%s="%s">
         <notifications>enable</notifications>
     </hostgroup>
 </opsview>
 XML;
-
-    return $this->_postXml( sprintf( $xml_template,
-        (is_numeric( $hostgroup ) ? 'id' : 'name' ), $hostgroup ) );
+    return $this->_postXml( sprintf( $xmlTemplate,
+        is_numeric( $hostgroup ) ? 'id' : 'name', $hostgroup ) );
   }
 
   public function disableNotifications( $hostgroup ) {
-    $xml_template = <<<'XML'
+    $xmlTemplate = <<<'XML'
 <opsview>
     <hostgroup action="change" by_%s="%s">
         <notifications>disable</notifications>
     </hostgroup>
 </opsview>
 XML;
-
-    return $this->_postXml( sprintf( $xml_template,
-        (is_numeric( $hostgroup ) ? 'id' : 'name' ), $hostgroup ) );
+    return $this->_postXml( sprintf( $xmlTemplate,
+        is_numeric( $hostgroup ) ? 'id' : 'name', $hostgroup ) );
   }
 
   public function reload() {
-    $xml_template = <<<'XML'
+    $xmlTemplate = <<<'XML'
 <opsview>
     <system action="reload"/>
 </opsview>
 XML;
-    return $this->_postXml( $xml_template );
+    return $this->_postXml( $xmlTemplate );
   }
 
   /**
@@ -345,27 +326,21 @@ XML;
    *
    * @return OpsviewRemote
    */
-  protected function _login() {
-    if( !$this->_connection->getCookieJar()->getCookie( $this->baseUrl,
+  private function _login() {
+    if( !$this->_connection->getCookieJar()->getCookie( $this->_baseUrl,
         'auth_tkt', Zend_Http_CookieJar::COOKIE_OBJECT ) ) {
-
-      $this->_connection->setUri( $this->baseUrl . self::URL_LOGIN );
+      $this->_connection->setUri( $this->_baseUrl . self::URL_LOGIN );
       $this->_connection->setParameterPost( array(
-        'login_username' => $this->username,
-        'login_password' => $this->password,
-        'back' => $this->baseUrl,
-        'login' => 'Log In',
-      ) );
-
-      $this->_connection->request( Zend_Http_Client::POST );
-
-      if( !$this->_connection->getCookieJar()->getCookie( $this->baseUrl,
+        'login_username' => $this->_username,
+        'login_password' => $this->_password,
+        'back' => $this->_baseUrl,
+        'login' => 'Log In' ) );
+      $this->_doRequest( Zend_Http_Client::POST );
+      if( !$this->_connection->getCookieJar()->getCookie( $this->_baseUrl,
           'auth_tkt', Zend_Http_CookieJar::COOKIE_OBJECT ) ) {
-        throw new RuntimeException( 'Login failed' );
+        throw new Opsview_Remote_Exception( 'Login failed for unknown reason' );
       }
     }
-
-    return $this;
   }
 
   /**
@@ -375,41 +350,51 @@ XML;
    *                        null means to acknowledge the host itself
    * @param string $comment acknowledgement comment
    * @param bool $notify send out notification of acknowledgement
-   * @param bool $auto_remove_comment remove the comment after service recovers
+   * @param bool $autoRemoveComment remove the comment after service recovers
    * @return bool response status, true if status is 200 (OK), false otherwise
    */
-  protected function _acknowledge( $targets, $comment, $notify,
-                                   $auto_remove_comment ) {
+  private function _acknowledge( array $targets, $comment, $notify,
+                                   $autoRemoveComment ) {
 
     $this->_login();
     $this->_connection->resetParameters()->
-      setUri( $this->baseUrl . self::URL_ACK )->
+      setUri( $this->_baseUrl . self::URL_ACK )->
       setRawData( self::_formatAckPostParameters( $targets, array(
-          'from' => $this->baseUrl,
+          'from' => $this->_baseUrl,
           'submit' => 'Submit',
           'comment' => $comment,
           'notify' => ($notify ? 'on' : 'off'),
-          'autoremovecomment' => ($auto_remove_comment ? 'on' : 'off'),
+          'autoremovecomment' => $autoRemoveComment ? 'on' : 'off',
         ) ) );
+    try {
+      $this->_doRequest( Zend_Http_Client::POST );
+    } catch( Opsview_Remote_HttpException $e ) {
+      return false;
+    }
+    return true;
+  }
 
-    $response = $this->_connection->request( Zend_Http_Client::POST );
-    return $response->getStatus() == 200;
+  private function _doRequest( $method ) {
+    $response = $this->_connection->request( $method );
+    if( $response->getStatus() == 200 ) {
+      return trim( $response->getBody() );
+    } else {
+      throw new Opsview_Remote_HttpException( $response->getMessage(), $reponse->getStatus() );
+    }
   }
 
   /**
    *
-   * @param string $xml_string xml to send to opsview's api
+   * @param string $xmlString xml to send to opsview's api
    * @return string opsview's xml response or null if there was an error
    */
-  protected function _postXml( $xml_string ) {
+  private function _postXml( $xmlString ) {
     $this->_login();
     $this->_connection->resetParameters()->
-      setUri( $this->baseUrl . self::URL_API )->
+      setUri( $this->_baseUrl . self::URL_API )->
       setHeaders( 'Content-Type', self::TYPE_XML )->
-      setRawData( trim( $xml_string ) );
-    $response = $this->_connection->request( Zend_Http_Client::POST );
-
-    return ($response->getStatus() == 200 ? trim( $response->getBody() ) : null);
+      setRawData( trim( $xmlString ) );
+    return $this->_doRequest( Zend_Http_Client::POST );
   }
 
   /**
@@ -417,46 +402,42 @@ XML;
    * @param array $parameters request params as var name => value
    * @return string the formatted request parameters, suitable for get or post
    */
-  protected static function _formatRequestParameters( $parameters ) {
-    $params_parsed = array( );
+  private static function _formatRequestParameters( array $parameters ) {
+    $paramsParsed = array();
     foreach( $parameters as $parameter => $value ) {
       if( is_array( $value ) ) {
         foreach( $value as $subvalue ) {
-          $params_parsed[] = urlencode( $parameter ) . '=' .
+          $paramsParsed[] = urlencode( $parameter ) . '=' .
             urlencode( $subvalue );
         }
       } else {
-        $params_parsed[] = urlencode( $parameter ) . '=' .
+        $paramsParsed[] = urlencode( $parameter ) . '=' .
           urlencode( $value );
       }
     }
-
-    return implode( '&', $params_parsed );
+    return implode( '&', $paramsParsed );
   }
 
   /**
    *
    * @param array $targets array of ack targets
-   * @param array $extra array of any additional post data
+   * @param array $params array of any additional post data
    * @return string the formatted post content
    */
-  protected static function _formatAckPostParameters( $targets, $extra=null ) {
-    $params_prepped = (is_array( $extra ) ? $extra : array( ));
-    $params_prepped['host_selection'] = array( );
-    $params_prepped['service_selection'] = array( );
-
+  private static function _formatAckPostParameters( array $targets,
+                                                       array $params = array() ) {
+    $params['host_selection'] = array();
+    $params['service_selection'] = array();
     foreach( $targets as $host => $services ) {
       foreach( $services as $service ) {
         if( !$service ) {
-          $params_prepped['host_selection'][] = $host;
+          $params['host_selection'][] = $host;
         } else {
-          $params_prepped['service_selection'][] = $host . ';' .
-            $service;
+          $params['service_selection'][] = $host . ';' . $service;
         }
       }
     }
-
-    return self::_formatRequestParameters( $params_prepped );
+    return self::_formatRequestParameters( $params );
   }
 
   /**
@@ -464,37 +445,37 @@ XML;
    * @param array $data array of attribute tags => values, nesting allowed
    * @return string the resultant xml
    */
-  protected static function _arrayToXml( $data ) {
-    $xml_string = '';
+  private static function _arrayToXml( array $data ) {
+    $xmlString = '';
     foreach( $data as $tag => $content ) {
-      if( is_array( $content ) ) {
-        $xml_string .= "<${tag}>" . self::_arrayToXml( $content ) .
-          "</${tag}>";
-      } else {
-        $xml_string .= "<${tag}>${content}</${tag}>";
-      }
+      $xmlString .= sprintf( '<%s>%s</%s>', $tag,
+        is_array( $content ) ? self::_arrayToXml( $content ) : $content, $tag );
     }
-
-    return $xml_string;
+    return $xmlString;
   }
 
   /**
-   * @param array $required_attributes list of required attributes
+   * @param array $requiredAttributes list of required attributes
    * @param array $attributes          list of attributes passed
    * @return bool true if every attribute in $required_attributes is found
    *                  in $attributes
    */
-  protected static function _checkRequiredAttributes( $required_attributes,
-                                                      $attributes ) {
+  private static function _checkRequiredAttributes( array $requiredAttributes,
+                                                      array $attributes ) {
 
-    foreach( $required_attributes as $attribute ) {
+    $missingAttributes = array();
+    foreach( $requiredAttributes as $attribute ) {
       if( !array_key_exists( $attribute, $attributes ) ||
         is_null( $attributes[$attribute] ) ) {
-        return false;
+        $missingAttributes[] = $attribute;
       }
     }
-
-    return true;
+    if( empty( $missingAttributes ) ) {
+      return true;
+    } else {
+      throw new Opsview_Remote_Exception( 'Missing required attributes: ' .
+        implode( ', ', $missingAttributes ) );
+    }
   }
 
   private static function _getFormattedTime( $time = null ) {

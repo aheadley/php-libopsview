@@ -121,28 +121,6 @@ abstract class Opsview_Node
     return $parsedData;
   }
 
-  /* ArrayAccess methods */
-  public function offsetGet( $offset ) {
-    return isset( $this->_attributes[$offset] ) ? $this->_attributes[$offset] : null;
-  }
-
-  public function offsetSet( $offset, $value ) {
-    if( is_null( $offset ) ) {
-      $this->_attributes[] = $value;
-    } else {
-      $this->_attributes[$offset] = $value;
-    }
-  }
-
-  public function offsetExists( $offset ) {
-    return isset( $this->_attributes[$offset] );
-  }
-
-  public function offsetUnset( $offset ) {
-    unset( $this->_attributes[$offset] );
-  }
-  /* end ArrayAccess methods */
-  
   public function parseJson( $data ) {
     if( is_string( $data ) ) {
       $node = Zend_Json::decode( $data );
@@ -169,7 +147,7 @@ abstract class Opsview_Node
       }
     }
   }
-  
+
   public function parseXml( $data ) {
     if( is_string( $data ) ) {
       $node = current( simplexml_load_string( $data )->xpath( self::$_xmlTagName ) );
@@ -190,10 +168,32 @@ abstract class Opsview_Node
       }
     }
   }
-  
+
   public function update( $filter = 0 ) {
     $this->parse( $this->getStatus( $filter ) );
   }
+
+  /* ArrayAccess methods */
+  public function offsetGet( $offset ) {
+    return isset( $this->_attributes[$offset] ) ? $this->_attributes[$offset] : null;
+  }
+
+  public function offsetSet( $offset, $value ) {
+    if( is_null( $offset ) ) {
+      $this->_attributes[] = $value;
+    } else {
+      $this->_attributes[$offset] = $value;
+    }
+  }
+
+  public function offsetExists( $offset ) {
+    return isset( $this->_attributes[$offset] );
+  }
+
+  public function offsetUnset( $offset ) {
+    unset( $this->_attributes[$offset] );
+  }
+  /* end ArrayAccess methods */
   
   private function _childrenAllowed() {
     if( is_null( self::$_childType ) ) {
