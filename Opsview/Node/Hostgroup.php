@@ -1,30 +1,4 @@
 <?php
-/**
- * Nexcess.net Toolkit
- *
- * <pre>
- * +----------------------------------------------------------------------+
- * | Nexcess.net Toolkit                                                  |
- * +----------------------------------------------------------------------+
- * | Copyright (c) 2006-2010 Nexcess.net L.L.C., All Rights Reserved.     |
- * +----------------------------------------------------------------------+
- * | Redistribution and use in source form, with or without modification  |
- * | is NOT permitted without consent from the copyright holder.          |
- * |                                                                      |
- * | THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND |
- * | ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,    |
- * | THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A          |
- * | PARTICULAR PURPOSE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,    |
- * | EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,  |
- * | PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR   |
- * | PROFITS; OF BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY  |
- * | OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT         |
- * | (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE    |
- * | USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH     |
- * | DAMAGE.                                                              |
- * +----------------------------------------------------------------------+
- * </pre>
- */
 
 class Opsview_Node_Hostgroup
   extends Opsview_Node {
@@ -32,11 +6,31 @@ class Opsview_Node_Hostgroup
   private static $_allowParent    = true;
   private static $_childType      = 'Opsview_Node_Host';
   protected static $_jsonTagName  = null;
-  private static $_xmlTagName     = null;
+  private static $_xmlTagName     = 'data';
+
+  public function cancelScheduledDowntime() {
+    $this->getRemote()->disableScheduledDowntime( $this->getName() );
+  }
 
   public function getStatus( $filter = 0 ) {
-    $this->getRemote()->getStatusHostgroup( $this->_attributes['id'] );
+    $this->getRemote()->getStatusHosts( $this->_attributes['hostgroup_id'] );
+  }
+
+  public function setScheduledDowntime( $comment, $start = null, $end = null) {
+    $this->getRemote()->scheduleDowntime( $this->getName(), $start, $end, $comment );
+  }
+
+  public function setNotifications( $enabled = true ) {
+    if( $enabled ) {
+      $this->getRemote()->enableNotifications( $this->getName() );
+    } else {
+      $this->getRemote()->disableNotifications( $this->getName() );
+    }
   }
 
   public function toXml() {}
+
+  public function update( $filter = 0 ) {
+    $this->parse( $this->getRemote()->getStatusHosts( $this->getName() ) );
+  }
 }

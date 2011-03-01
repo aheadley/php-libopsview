@@ -1,37 +1,12 @@
 <?php
 
-/**
- * Nexcess.net Toolkit
- *
- * <pre>
- * +----------------------------------------------------------------------+
- * | Nexcess.net Toolkit                                                  |
- * +----------------------------------------------------------------------+
- * | Copyright (c) 2006-2010 Nexcess.net L.L.C., All Rights Reserved.     |
- * +----------------------------------------------------------------------+
- * | Redistribution and use in source form, with or without modification  |
- * | is NOT permitted without consent from the copyright holder.          |
- * |                                                                      |
- * | THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND |
- * | ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,    |
- * | THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A          |
- * | PARTICULAR PURPOSE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,    |
- * | EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,  |
- * | PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR   |
- * | PROFITS; OF BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY  |
- * | OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT         |
- * | (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE    |
- * | USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH     |
- * | DAMAGE.                                                              |
- * +----------------------------------------------------------------------+
- * </pre>
- */
 class Opsview_Remote {
   //4-bit mask
   const STATE_OK              = 1;
   const STATE_WARNING         = 2;
   const STATE_CRITICAL        = 4;
   const STATE_UNKNOWN         = 8;
+  const TIME_FORMAT           = 'Y/m/d H:i:s';
   const TYPE_XML              = 'text/xml';
   const TYPE_JSON             = 'application/json';
   const URL_ACK               = 'status/service/acknowledge';
@@ -47,7 +22,7 @@ class Opsview_Remote {
 
   /**
    *
-   * @param string $base_url url to base opsview location, i.e.
+   * @param string $baseUrl url to base opsview location, i.e.
    *                          https://www.example.com/opsview/
    * @param string $username username to login to opsview
    * @param string $password password for that user
@@ -55,17 +30,17 @@ class Opsview_Remote {
    *                              applies to status requests, api requests are
    *                              always in xml
    */
-  public function __construct( $base_url, $username, $password,
+  public function __construct( $baseUrl, $username, $password,
                                $content_type=null ) {
 
-    $this->base_url = $base_url;
+    $this->baseUrl = $baseUrl;
     $this->username = $username;
     $this->password = $password;
-    $this->content_type = ($content_type == self::TYPE_JSON ?
+    $this->contentType = ($content_type == self::TYPE_JSON ?
         self::TYPE_JSON : self::TYPE_XML);
 
     $this->_connection = new Zend_Http_Client(
-        $this->base_url,
+        $this->baseUrl,
         array(
           'strictredirects' => true,
           'timeout' => (int)ini_get( 'default_socket_timeout' ),
@@ -93,9 +68,9 @@ class Opsview_Remote {
       $get_params['filter'] = 'unhandled';
     }
     $this->_connection->resetParameters()->
-      setUri( $this->base_url . self::URL_STATUS . '?' .
+      setUri( $this->baseUrl . self::URL_STATUS . '?' .
         self::_formatRequestParameters( $get_params ) )->
-      setHeaders( 'Content-Type', $this->content_type );
+      setHeaders( 'Content-Type', $this->contentType );
     $response = $this->_connection->request( Zend_Http_Client::GET );
 
     return ($response->getStatus() == 200 ? trim( $response->getBody() ) : null);
@@ -113,9 +88,9 @@ class Opsview_Remote {
       $get_params['filter'] = 'unhandled';
     }
     $this->_connection->resetParameters()->
-      setUri( $this->base_url . self::URL_STATUS . '?' .
+      setUri( $this->baseUrl . self::URL_STATUS . '?' .
         self::_formatRequestParameters( $get_params ) )->
-      setHeaders( 'Content-Type', $this->content_type );
+      setHeaders( 'Content-Type', $this->contentType );
     $response = $this->_connection->request( Zend_Http_Client::GET );
 
     return ($response->getStatus() == 200 ? trim( $response->getBody() ) : null);
@@ -135,9 +110,9 @@ class Opsview_Remote {
       $get_params['filter'] = 'unhandled';
     }
     $this->_connection->resetParameters()->
-      setUri( $this->base_url . self::URL_STATUS . '?' .
+      setUri( $this->baseUrl . self::URL_STATUS . '?' .
         self::_formatRequestParameters( $get_params ) )->
-      setHeaders( 'Content-Type', $this->content_type );
+      setHeaders( 'Content-Type', $this->contentType );
     $response = $this->_connection->request( Zend_Http_Client::GET );
 
     return ($response->getStatus() == 200 ? trim( $response->getBody() ) : null);
@@ -145,7 +120,7 @@ class Opsview_Remote {
 
   public function getStatusService( $host_name, $service_name ) {
     $host_status = $this->getStatusHost( $host_name );
-    switch( $this->content_type ) {
+    switch( $this->contentType ) {
       case self::TYPE_JSON:
         foreach( $host_status['data']['list']['services'] as $service ) {
           if( strtolower( $service['name'] ) == strtolower( $service_name ) ) {
@@ -169,9 +144,13 @@ class Opsview_Remote {
   public function getStatusHostgroup( $hostgroup_id='' ) {
     $this->_login();
     $this->_connection->resetParameters()->
-      setUri( $this->base_url . self::URL_STATUS_HOSTGROUP .
-        '/' . $hostgroup_id )->
-      setHeaders( 'Content-Type', $this->content_type );
+      setHeaders( 'Content-Type', $this->contentType );
+    if( is_numeric( $hostgroup_id ) || empty( $hostgroup_id ) ) {
+      $this->_connection->setUri( $this->baseUrl . self::URL_STATUS_HOSTGROUP . '/' . $hostgroup_id );
+    } else {
+      $this->_connection->setUri( $this->baseUrl . self::URL_STATUS_HOSTGROUP )->
+      setParameterGet( 'by_name', $hostgroup_id );
+    }
     $response = $this->_connection->request( Zend_Http_Client::GET );
 
     return ($response->getStatus() == 200 ? trim( $response->getBody() ) : null);
@@ -183,7 +162,7 @@ class Opsview_Remote {
     $status = $this->getStatusAll(
         self::STATE_WARNING | self::STATE_CRITICAL, true );
     $targets = array( );
-    switch( $this->content_type ) {
+    switch( $this->contentType ) {
       case self::TYPE_JSON:
         $status = json_decode( $status, true );
         $hosts = $status_decoded['data']['list'];
@@ -288,6 +267,12 @@ XML;
   }
 
   public function scheduleDowntime( $hostgroup, $start_time, $end_time, $comment ) {
+    if( is_null( $start_time ) ) {
+      $start_time = self::_getFormattedTime();
+      if( is_null( $end_time ) ) {
+        $end_time = self::_getFormattedTime( time() + 3600 );
+      }
+    }
     $xml_template = <<<'XML'
 <opsview>
     <hostgroup action="change" by_%s="%s">
@@ -361,20 +346,20 @@ XML;
    * @return OpsviewRemote
    */
   protected function _login() {
-    if( !$this->_connection->getCookieJar()->getCookie( $this->base_url,
+    if( !$this->_connection->getCookieJar()->getCookie( $this->baseUrl,
         'auth_tkt', Zend_Http_CookieJar::COOKIE_OBJECT ) ) {
 
-      $this->_connection->setUri( $this->base_url . self::URL_LOGIN );
+      $this->_connection->setUri( $this->baseUrl . self::URL_LOGIN );
       $this->_connection->setParameterPost( array(
         'login_username' => $this->username,
         'login_password' => $this->password,
-        'back' => $this->base_url,
+        'back' => $this->baseUrl,
         'login' => 'Log In',
       ) );
 
       $this->_connection->request( Zend_Http_Client::POST );
 
-      if( !$this->_connection->getCookieJar()->getCookie( $this->base_url,
+      if( !$this->_connection->getCookieJar()->getCookie( $this->baseUrl,
           'auth_tkt', Zend_Http_CookieJar::COOKIE_OBJECT ) ) {
         throw new RuntimeException( 'Login failed' );
       }
@@ -398,9 +383,9 @@ XML;
 
     $this->_login();
     $this->_connection->resetParameters()->
-      setUri( $this->base_url . self::URL_ACK )->
+      setUri( $this->baseUrl . self::URL_ACK )->
       setRawData( self::_formatAckPostParameters( $targets, array(
-          'from' => $this->base_url,
+          'from' => $this->baseUrl,
           'submit' => 'Submit',
           'comment' => $comment,
           'notify' => ($notify ? 'on' : 'off'),
@@ -419,7 +404,7 @@ XML;
   protected function _postXml( $xml_string ) {
     $this->_login();
     $this->_connection->resetParameters()->
-      setUri( $this->base_url . self::URL_API )->
+      setUri( $this->baseUrl . self::URL_API )->
       setHeaders( 'Content-Type', self::TYPE_XML )->
       setRawData( trim( $xml_string ) );
     $response = $this->_connection->request( Zend_Http_Client::POST );
@@ -512,4 +497,11 @@ XML;
     return true;
   }
 
+  private static function _getFormattedTime( $time = null ) {
+    if( is_null( $time ) ) {
+      return date( self::TIME_FORMAT );
+    } else {
+      return date( self::TIME_FORMAT, $time );
+    }
+  }
 }
