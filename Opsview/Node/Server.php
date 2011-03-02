@@ -3,11 +3,10 @@
 class Opsview_Node_Server
   extends Opsview_Node {
 
-  private static $_allowParent    = false;
-  private static $_childType      = 'Opsview_Node_Host';
-  protected static $_xmlTagName     = 'data';
-  protected static $_jsonTagName    = 'service';
-
+  protected $_childType   = 'Opsview_Node_Host';
+  protected $_allowParent = false;
+  protected $_xmlTagName  = 'data';
+  protected $_jsonTagName = 'service';
   private $_remote    = null;
   private $_url       = null;
   private $_username  = null;

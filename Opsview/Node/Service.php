@@ -3,10 +3,10 @@
 class Opsview_Node_Service
   extends Opsview_Node {
 
-  private static $_childType      = null;
-  private static $_allowParent    = true;
-  private static $_xmlTagName     = 'services';
-  protected static $_jsonTagName  = 'services';
+  protected $_childType   = null;
+  protected $_allowParent = true;
+  protected $_xmlTagName  = 'services';
+  protected $_jsonTagName = 'services';
 
   public function acknowledge( $comment, $notify = true, $autoRemoveComment = true ) {
     $this->getRemote()->acknowledgeService( $this->getName(), $this->getParent()->getName(),

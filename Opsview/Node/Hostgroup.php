@@ -3,10 +3,10 @@
 class Opsview_Node_Hostgroup
   extends Opsview_Node {
 
-  private static $_allowParent    = true;
-  private static $_childType      = 'Opsview_Node_Host';
-  protected static $_jsonTagName  = null;
-  private static $_xmlTagName     = 'data';
+  protected $_childType   = 'Opsview_Node_Host';
+  protected $_allowParent = true;
+  protected $_xmlTagName  = 'data';
+  protected $_jsonTagName = 'service';
 
   public function cancelScheduledDowntime() {
     $this->getRemote()->disableScheduledDowntime( $this->getName() );

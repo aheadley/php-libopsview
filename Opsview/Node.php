@@ -2,12 +2,11 @@
 
 abstract class Opsview_Node
   implements ArrayAccess {
-  //looks like these need to be non-static
-  private static $_childType      = null;
-  private static $_allowParent    = null;
-  protected static $_xmlTagName   = null;
-  protected static $_jsonTagName  = null;
 
+  protected $_childType      = null;
+  protected $_allowParent    = null;
+  protected $_xmlTagName   = null;
+  protected $_jsonTagName  = null;
   private $_parent      = null;
   private $_children    = array();
   private $_attributes  = array();
@@ -34,7 +33,7 @@ abstract class Opsview_Node
     } catch( Opsview_Node_Exception $e ) {
       return false;
     }
-    return in_array( $child, $this->_children );
+    return in_array( $child, $this->_children, true );
   }
 
   public function getChild( $offset ) {
@@ -56,7 +55,7 @@ abstract class Opsview_Node
   public function removeChild( Opsview_Node $child ) {
     $this->_childrenAllowed();
     if( $this->hasChild( $child ) ) {
-      //search array and remove
+      //TODO: search array and remove
     }
   }
 
@@ -78,12 +77,12 @@ abstract class Opsview_Node
 
   public function toJson() {
     $object = $this->_attributes;
-    if( !is_null( self::$_childType ) ) {
-      $childType = self::$_childType;
-      $object[$childType::_jsonTagName] = array();
+    if( !is_null( $this->_childType ) ) {
+      $childType = $this->_childType;
+      $object[${$this->_childType}->_jsonTagName] = array();
       foreach( $this->getChildren() as $child ) {
-        //this won't work, it's going to give an array of strings of json objects
-        $object[$childType::_jsonTagName][] = $child->toJson();
+        //TODO: this won't work, it's going to give an array of strings of json objects
+        $object[${$this->_childType}->_jsonTagName][] = $child->toJson();
       }
     }
     return Zend_Json::encode( $object );
@@ -127,21 +126,21 @@ abstract class Opsview_Node
     } else {
       $node = $data;
     }
-    if( isset( $node[self::$_jsonTagName] ) ) {
+    if( isset( $node[$this->_jsonTagName] ) ) {
       /* if the tag name we're looking for isn't in the data we're given, we'll
        * just assume that the root node is the tag were looking for
        */
-      $node = $node[self::$_jsonTagName];
+      $node = $node[$this->_jsonTagName];
     }
     $this->_attributes = array();
     foreach( array_filter( $node, 'is_string' ) as $attr => $value ) {
       $this->_attributes[$attr] = $value;
     }
-    if( !is_null( self::$_childType ) ) {
+    if( !is_null( $this->_childType ) ) {
       $this->_children = array();
-      $childType = self::$_childType;
-      foreach( $node[$childType::_jsonTagName] as $child ) {
-        $newChild = new $childType( $child['name'], $this );
+      //TODO: this won't work, can't get the child class's json tag name
+      foreach( $node[$this->_childType->_jsonTagName] as $child ) {
+        $newChild = new $this->_childType( $child['name'], $this );
         $newChild->parseJson( $child );
         $this->addChild( $newChild );
       }
@@ -150,7 +149,7 @@ abstract class Opsview_Node
 
   public function parseXml( $data ) {
     if( is_string( $data ) ) {
-      $node = current( simplexml_load_string( $data )->xpath( self::$_xmlTagName ) );
+      $node = current( simplexml_load_string( $data )->xpath( $this->_xmlTagName ) );
     } else {
       $node = $data;
     }
@@ -158,18 +157,19 @@ abstract class Opsview_Node
     foreach( $node->attributes() as $attr => $value ) {
       $this->_attributes[$attr] = $value;
     }
-    if( !is_null( self::$_childType ) ) {
+    if( !is_null( $this->_childType ) ) {
       $this->_children = array();
-      $childType = self::$_childType;
+      //TODO: same problem as parseJson, should also maybe use xpath query to get children
       foreach( $node->children() as $child ) {
-        $newChild = new $childType( $child->attributes()->name, $this );
-        $newChild->parseXml( $child11 );
+        $newChild = new $this->_childType( $child->attributes()->name, $this );
+        $newChild->parseXml( $child );
         $this->addChild( $newChild );
       }
     }
   }
 
   public function update( $filter = 0 ) {
+    var_dump( $this->_xmlTagName );
     $this->parse( $this->getStatus( $filter ) );
   }
 
@@ -194,15 +194,15 @@ abstract class Opsview_Node
     unset( $this->_attributes[$offset] );
   }
   /* end ArrayAccess methods */
-  
+
   private function _childrenAllowed() {
-    if( is_null( self::$_childType ) ) {
+    if( is_null( $this->_childType ) ) {
       throw new Opsview_Node_Exception( 'Node cannot have children' );
     }
   }
 
   private function _parentAllowed() {
-    if( !self::$_allowParent ) {
+    if( !$this->_allowParent ) {
       throw new Opsview_Node_Exception( 'Node cannot have a parent' );
     }
   }
