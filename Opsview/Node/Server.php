@@ -5,8 +5,8 @@ class Opsview_Node_Server
 
   private static $_allowParent    = false;
   private static $_childType      = 'Opsview_Node_Host';
-  private static $_xmlTagName     = 'data';
-  private static $_jsonTagName    = 'service';
+  protected static $_xmlTagName     = 'data';
+  protected static $_jsonTagName    = 'service';
 
   private $_remote    = null;
   private $_url       = null;

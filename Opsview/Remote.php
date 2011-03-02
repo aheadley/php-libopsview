@@ -44,9 +44,12 @@ class Opsview_Remote {
         array(
           'strictredirects' => true,
           'timeout' => (int)ini_get( 'default_socket_timeout' ),
-          'keepalive' => true,
-      ) );
+          'keepalive' => true ) );
     $this->_connection->setCookieJar();
+  }
+
+  public function getContentType() {
+    return $this->_contentType;
   }
 
   /**
@@ -364,8 +367,7 @@ XML;
           'submit' => 'Submit',
           'comment' => $comment,
           'notify' => ($notify ? 'on' : 'off'),
-          'autoremovecomment' => $autoRemoveComment ? 'on' : 'off',
-        ) ) );
+          'autoremovecomment' => $autoRemoveComment ? 'on' : 'off' ) ) );
     try {
       $this->_doRequest( Zend_Http_Client::POST );
     } catch( Opsview_Remote_HttpException $e ) {

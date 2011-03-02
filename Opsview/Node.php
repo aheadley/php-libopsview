@@ -2,11 +2,11 @@
 
 abstract class Opsview_Node
   implements ArrayAccess {
-  
-  abstract private static $_childType;
-  abstract private static $_allowParent;
-  abstract protected static $_xmlTagName;
-  abstract protected static $_jsonTagName;
+  //looks like these need to be non-static
+  private static $_childType      = null;
+  private static $_allowParent    = null;
+  protected static $_xmlTagName   = null;
+  protected static $_jsonTagName  = null;
 
   private $_parent      = null;
   private $_children    = array();
@@ -163,7 +163,7 @@ abstract class Opsview_Node
       $childType = self::$_childType;
       foreach( $node->children() as $child ) {
         $newChild = new $childType( $child->attributes()->name, $this );
-        $newChild->parseXml( $child->asXML() );
+        $newChild->parseXml( $child11 );
         $this->addChild( $newChild );
       }
     }
